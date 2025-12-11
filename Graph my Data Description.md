@@ -86,15 +86,21 @@
 
 **Overlay Surfaces (3D only):**
 - Three modes: Surface Equation, Parametric, Manual Points
+- All modes create smooth mesh surfaces (Plotly mesh3d or surface traces)
 - **Surface Mode:**
   - Choose variable: z=f(x,y), y=f(x,z), or x=f(y,z)
   - Input equation
+  - Evaluated on 30×30 grid to create smooth surface
 - **Parametric Mode:**
   - Define x(t), y(t), z(t) equations
+  - Evaluated over parameter range to create smooth surface
 - **Points Mode:**
-  - Define surface via 3+ points
-- Properties per surface: Name, Color, Opacity (0.0-1.0), Width
-- Grid resolution: 30×30 for equations
+  - Define surface via 3+ vertex points
+  - Creates triangulated mesh surface connecting all points (Delaunay triangulation)
+  - Minimum 3 points (forms single triangle)
+  - More points = more detailed faceted surface
+- Properties per surface: Name, Color, Opacity (0.0-1.0)
+- Note: Width property not applicable to surfaces (only for lines)
 
 **Custom Hover Data:**
 - Select which columns appear in hover tooltips
@@ -229,11 +235,11 @@
           name: string,
           color: string,
           opacity: number,
-          width: number | null,
           mode: "surface" | "parametric" | "points",
           surfaceEquation: { variable: "z" | "y" | "x", equation: string } | null,
           parametricEquations: { x: string, y: string, z: string } | null,
           points: [{ x: number, y: number, z: number }] | null
+          // Note: All modes render as mesh3d or surface traces
         }
       ],
       hoverFields: string[]
@@ -330,11 +336,19 @@
 - Render on same graph
 
 **FR-15:** Apply overlay surfaces (3D only)
-- **Surface mode:** Evaluate equation on 30×30 grid, create surface trace
-- **Parametric mode:** Evaluate parametric equations, create surface trace
-- **Points mode:** Create surface trace from specified points
-- Apply color and opacity
-- Render on same graph
+- All modes create smooth mesh surfaces using Plotly's mesh3d or surface traces
+- **Surface mode:**
+  - Evaluate equation on 30×30 grid
+  - Create smooth surface trace from grid data
+- **Parametric mode:**
+  - Evaluate x(t), y(t), z(t) over parameter range
+  - Create smooth surface trace from parametric data
+- **Points mode:**
+  - Use specified vertex points (minimum 3)
+  - Apply Delaunay triangulation to create mesh3d surface
+  - Connect all points into continuous triangulated mesh
+- Apply color and opacity to surface
+- Render on same graph as data
 
 **FR-16:** Custom hover data
 - Include selected columns in hover template
@@ -374,8 +388,9 @@
 - Add Surface button creates new surface entry
 - Toggle between Surface, Parametric, Points modes
 - Each mode shows relevant inputs
+- All modes result in smooth mesh surface visualization
 - Validate equations and numeric inputs
-- Minimum 3 points in Points mode
+- Minimum 3 points in Points mode (creates triangulated mesh)
 
 **FR-23:** Select hover data fields
 - Show checkbox grid of all columns
