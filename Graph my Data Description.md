@@ -6,7 +6,7 @@
 
 **Tech Stack:**
 - Plotly.js 2.27.0 (graph rendering)
-- SheetJS 0.18.5 (Excel parsing)
+- ExcelJS 4.x (Excel parsing)
 - Vanilla JavaScript (ES6+)
 - HTML/CSS/JS (standard web structure)
 
@@ -19,7 +19,7 @@
 ### 2.1 Data Import
 **Excel Files:**
 - File upload input (.xlsx, .xls)
-- Client-side parsing with SheetJS
+- Client-side parsing with ExcelJS
 - Auto-load on file selection
 - Support for drag-and-drop upload (optional)
 
@@ -255,7 +255,7 @@
 ### 5.1 Data Loading
 
 **FR-1:** User can upload Excel file (.xlsx, .xls)
-- Use SheetJS to parse file
+- Use ExcelJS to parse file
 - Extract all sheets
 - Store in `allData` object
 - Show success toast with sheet count and filename
@@ -426,7 +426,7 @@
 ### 6.4 Code Organization
 - Standard web structure: separate HTML, CSS, and JS files
 - Modular JavaScript (can use ES6 modules or separate script files)
-- External dependencies: Plotly.js and SheetJS (loaded via CDN or local)
+- External dependencies: Plotly.js and ExcelJS (loaded via CDN or local)
 - No build process required (optional bundling for production)
 
 ---
@@ -475,33 +475,3 @@
 
 **US-6:** As a mobile user, I want the interface to work on my tablet so I can analyze data on the go.
 
----
-
-## 9. Out of Scope (V1)
-
-- User accounts / authentication
-- Saving graphs to server
-- Sharing graphs via URL
-- Exporting graphs as images (use Plotly's built-in download)
-- Real-time collaboration
-- Animated/time-series graphs
-- Statistical analysis tools
-- Database connections
-- Cloud storage integrations (Google Sheets, OneDrive, etc.)
-- CSV file support (Excel only for V1)
-
----
-
-## 10. Future Enhancements (V2+)
-
-- CSV file support
-- Google Sheets integration
-- Save/load graph configurations (localStorage or server)
-- More graph types (heatmaps, contour plots, mesh)
-- Animation support for time-series data
-- Statistical overlays (regression lines, confidence intervals)
-- Dark mode
-- Export to SVG/PDF
-- Shareable URLs with embedded data
-- Worksheet-style data editing
-- Database connectivity
