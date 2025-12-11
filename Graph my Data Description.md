@@ -1,15 +1,14 @@
-# Graph Google Sheet / Excel Data - Requirements Document
+# Excel Data Grapher - Requirements Document
 
 ## 1. Project Overview
 
-**Purpose:** Web application for visualizing data from Google Sheets and Excel files using interactive 2D/3D graphs.
+**Purpose:** Web application for visualizing data from Excel files using interactive 2D/3D graphs.
 
 **Tech Stack:**
 - Plotly.js 2.27.0 (graph rendering)
 - SheetJS 0.18.5 (Excel parsing)
-- Google Apps Script (Google Sheets integration)
 - Vanilla JavaScript (ES6+)
-- Single HTML file with embedded CSS/JS
+- HTML/CSS/JS (standard web structure)
 
 **Target Browsers:** Chrome 90+, Firefox 88+, Safari 14+, Edge 90+
 
@@ -18,15 +17,11 @@
 ## 2. Core Features
 
 ### 2.1 Data Import
-**Google Sheets:**
-- Input field for Google Sheets URL
-- "Load Sheet Data" button
-- Fetch data via Google Apps Script backend
-
 **Excel Files:**
 - File upload input (.xlsx, .xls)
 - Client-side parsing with SheetJS
 - Auto-load on file selection
+- Support for drag-and-drop upload (optional)
 
 **Data Handling:**
 - Support multiple sheets per file
@@ -34,7 +29,7 @@
 - Auto-detect and parse numeric columns
 - First row = headers
 - Empty cells = null values
-- Confirmation dialog before clearing existing graphs
+- Confirmation dialog before clearing existing graphs when loading new file
 
 ### 2.2 Graph Management
 **Multiple Graphs:**
@@ -115,7 +110,7 @@
 **Header Section:**
 - Purple gradient background (#667eea to #764ba2)
 - App title with chart icon
-- Two-column data input section (Google URL | Excel File)
+- Centered Excel file upload input
 
 **Graph Sections:**
 - Each graph in its own container
@@ -253,27 +248,25 @@
 
 ### 5.1 Data Loading
 
-**FR-1:** User can paste Google Sheets URL and load data
-- Validate URL format
-- Fetch data from backend
-- Parse JSON response
-- Store in `allData` object
-- Show success toast with sheet count
-
-**FR-2:** User can upload Excel file (.xlsx, .xls)
+**FR-1:** User can upload Excel file (.xlsx, .xls)
 - Use SheetJS to parse file
 - Extract all sheets
 - Store in `allData` object
-- Show success toast with sheet count
+- Show success toast with sheet count and filename
 
-**FR-3:** Loading new data clears all existing graphs
+**FR-2:** Loading new data clears all existing graphs
 - Show confirmation dialog if graphs exist
 - Clear `graphs` array on confirmation
 - Re-render page
 
-**FR-4:** Column order preserved from source
+**FR-3:** Column order preserved from source
 - Store column order in `columnOrder` object
 - Use for populating dropdowns
+
+**FR-4:** (Optional) Drag-and-drop file upload
+- Accept files dropped anywhere on page
+- Highlight drop zone on drag-over
+- Process file same as file input
 
 ### 5.2 Graph Creation & Configuration
 
@@ -416,9 +409,10 @@
 - No polyfills for older browsers
 
 ### 6.4 Code Organization
-- Single HTML file with embedded CSS/JS
-- No external dependencies beyond Plotly.js and SheetJS
-- No build process required
+- Standard web structure: separate HTML, CSS, and JS files
+- Modular JavaScript (can use ES6 modules or separate script files)
+- External dependencies: Plotly.js and SheetJS (loaded via CDN or local)
+- No build process required (optional bundling for production)
 
 ---
 
@@ -478,13 +472,16 @@
 - Animated/time-series graphs
 - Statistical analysis tools
 - Database connections
-- API integrations beyond Google Sheets
+- Cloud storage integrations (Google Sheets, OneDrive, etc.)
+- CSV file support (Excel only for V1)
 
 ---
 
 ## 10. Future Enhancements (V2+)
 
-- Save/load graph configurations
+- CSV file support
+- Google Sheets integration
+- Save/load graph configurations (localStorage or server)
 - More graph types (heatmaps, contour plots, mesh)
 - Animation support for time-series data
 - Statistical overlays (regression lines, confidence intervals)
