@@ -85,6 +85,18 @@ Each graph in `state.graphs` has this shape:
 - `commitPendingHistorySave(graphId)` - Finalize history after debounce
 - `setupAutoUpdateListeners(graphId)` - Wire up all input event listeners
 
+**Filter Slider System:**
+- `filterDataRanges` Map - Stores `{ x: { min, max }, y: { min, max }, z: { min, max } }` per graph
+- `getColumnDataRange(graphId, axis)` - Calculate min/max values from column data
+- `updateFilterDataRanges(graphId)` - Recalculate ranges for all axes
+- `updateFilterLabel(graphId, axis)` - Update filter label with column name
+- `updateAllFilterLabels(graphId)` - Update all three filter labels
+- `updateSliderRanges(graphId)` - Set slider min/max/step from data ranges
+- `updateSliderRangeVisual(graphId, axis)` - Update colored range bar between handles
+- `syncSliderToInputs(graphId, axis)` - Copy slider values to text inputs
+- `syncInputsToSlider(graphId, axis)` - Copy text input values to sliders
+- `resetFilterToFullRange(graphId, axis)` - Reset filter when column changes
+
 **Rendering:**
 - `renderAllGraphs()` - Re-renders all graph sections
 - `renderGraphSection(graph)` - Creates DOM for single graph
@@ -196,21 +208,23 @@ Chrome 90+, Firefox 88+, Safari 14+, Edge 90+
 Each graph section has a 3-column layout:
 - **Left panel**: Controls (sheet dropdown, dimension buttons, type buttons, column selectors)
 - **Center**: Graph display with corner action buttons and title input
-- **Right panel**: Axis filters (min/max/ignore zero) and copy settings section
+- **Right panel**: Axis filters (with dual-handle sliders) and copy settings section
 
 **Control Types:**
 - Sheet selection: Dropdown
 - Dimension: 2x2 grid of option buttons (`2D`, `2D+Color`, `3D`, `3D+Color`)
 - Graph Type: Row of option buttons (changes based on dimension)
 - Column selectors: Dropdowns
-- Filters: Number inputs with inline "Ignore 0" checkbox in header
+- Filters: Dynamic column name label, "Ignore 0" checkbox, min/max inputs with dual-handle range slider
 
 ### DOM ID Patterns
 - Graph section: `graph-section-{id}`
 - Plot container: `plot-{id}`
 - Controls: `sheet-{id}` (select), `dimension-{id}` (button container), `type-{id}` (button container)
 - Columns: `x-col-{id}`, `y-col-{id}`, `z-col-{id}`, `color-col-{id}`
-- Filters: `x-min-{id}`, `x-max-{id}`, `x-ignore-zero-{id}`, etc.
+- Filter labels: `x-filter-label-{id}`, `y-filter-label-{id}`, `z-filter-label-{id}`
+- Filter inputs: `x-min-{id}`, `x-max-{id}`, `x-ignore-zero-{id}`, etc.
+- Filter sliders: `x-slider-min-{id}`, `x-slider-max-{id}`, `x-slider-range-{id}`, `x-slider-container-{id}`, etc.
 - Visibility groups: `z-col-group-{id}`, `color-col-group-{id}`, `z-filter-group-{id}`
 - Copy settings: `copy-from-{id}`
 
@@ -221,12 +235,17 @@ On page load, `initializeExampleGraph()` creates sample 3D data (Gaussian ripple
 ## Testing
 
 Manual testing workflow:
-1. Load page - example 3D graph should display
+1. Load page - example 3D graph should display with "Gaussian Ripple Example Data" title
 2. Upload Excel file - graphs clear, new data loads
 3. Add/delete/configure graphs
 4. Test dimension buttons (2D/2D+Color/3D/3D+Color) - graph type buttons should update
 5. Test graph type buttons (Scatter/Line/Bar for 2D, 3D Scatter for 3D)
-6. Test filters (min/max/ignore zero checkbox)
+6. Test filters:
+   - Filter labels should show column names (e.g., "X Filter" becomes "Radius Filter" when column changes)
+   - Dual-handle sliders should update text inputs in real-time while dragging
+   - Text inputs should update slider positions when edited
+   - Graph should update only on slider release (not during drag)
+   - Slider range should auto-detect from column data
 7. Test copy settings (select source graph, click Apply)
 8. Test fullscreen, new window, clipboard buttons
 9. Test Advanced Options modal (overlays, hover fields)
@@ -234,3 +253,4 @@ Manual testing workflow:
 11. Test auto-update (changes apply automatically without clicking refresh)
 12. Test undo/redo buttons (make changes, click undo, click redo)
 13. Test Advanced Options Apply/Discard (add overlay, click Apply vs X button)
+14. Test 3D camera preservation (rotate graph, change filter, orientation should stay)

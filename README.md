@@ -28,12 +28,14 @@ All graph types support an optional **color dimension** to add a fourth variable
 - **Auto-update** - Graphs refresh automatically as you make changes
 
 ### Data Filtering
-Per-axis filters for X, Y, and Z:
-- Minimum value
-- Maximum value
-- Ignore zero values
+Per-axis filters for X, Y, and Z with intuitive controls:
+- **Dynamic labels** - Filter sections show the actual column name (e.g., "Radius Filter" instead of "X-Axis Filter")
+- **Dual-handle range sliders** - Drag min/max handles to filter data visually
+- **Text inputs** - Type exact values or see current slider positions
+- **Ignore zero values** - Checkbox to exclude zero values
+- **Auto-detected range** - Slider bounds automatically set from column data
 
-Filters combine with AND logic.
+Sliders and text inputs are bidirectionally synced. Graph updates on slider release for smooth interaction. Filters combine with AND logic.
 
 ### Overlay System
 
@@ -65,6 +67,10 @@ Supported in overlay equations:
 - **Fullscreen** - Expand graph to full viewport (ESC to exit)
 - **New Window** - Open graph in a popup window
 - **Copy** - Copy graph image to clipboard
+
+### 3D Graph Interaction
+- Rotate, pan, and zoom 3D graphs with mouse/touch
+- **Camera preservation** - Graph orientation is maintained when making changes (filters, settings, etc.)
 
 ### Custom Hover Data
 Select which columns appear in hover tooltips beyond the default X, Y, Z values.

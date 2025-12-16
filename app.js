@@ -12,6 +12,7 @@ let graphIdCounter = 0;
 const graphHistory = new Map(); // graphId -> { past: [], future: [] }
 const debouncedUpdates = new Map(); // graphId -> debounced update function
 const pendingHistorySaves = new Map(); // graphId -> { snapshot, timeoutId }
+const filterDataRanges = new Map(); // graphId -> { x: { min, max }, y: { min, max }, z: { min, max } }
 
 function initGraphHistory(graphId) {
     graphHistory.set(graphId, { past: [], future: [] });
@@ -76,6 +77,14 @@ function updateFiltersUI(graphId, graph) {
         document.getElementById(`z-max-${graphId}`).value = graph.filters.z.max ?? '';
         document.getElementById(`z-ignore-zero-${graphId}`).checked = graph.filters.z.ignoreZero;
     }
+
+    // Update sliders to match restored filter values
+    syncInputsToSlider(graphId, 'x');
+    syncInputsToSlider(graphId, 'y');
+    syncInputsToSlider(graphId, 'z');
+
+    // Update labels in case column changed
+    updateAllFilterLabels(graphId);
 }
 
 function updateUndoRedoButtons(graphId) {
@@ -343,10 +352,11 @@ function deleteGraph(graphId) {
         const section = document.getElementById(`graph-section-${graphId}`);
         if (section) section.remove();
 
-        // Clean up history and debounce state
+        // Clean up history, debounce state, and filter ranges
         graphHistory.delete(graphId);
         debouncedUpdates.delete(graphId);
         pendingHistorySaves.delete(graphId);
+        filterDataRanges.delete(graphId);
 
         showToast('Graph deleted', 'info');
     }
@@ -508,60 +518,75 @@ function renderGraphSection(graph) {
             <!-- Right Panel: Filters -->
             <div class="filter-panel">
                 <div class="filter-section">
-                    <div class="filter-section-header-row">
-                        <div class="filter-section-title">X-Axis Filter</div>
-                        <div class="checkbox-group-inline">
-                            <input type="checkbox" id="x-ignore-zero-${graph.id}" ${graph.filters.x.ignoreZero ? 'checked' : ''}>
-                            <label for="x-ignore-zero-${graph.id}">Ignore 0</label>
-                        </div>
+                    <div class="filter-section-label" id="x-filter-label-${graph.id}">${graph.columns.x || 'X-Axis'} Filter</div>
+                    <div class="filter-ignore-row">
+                        <input type="checkbox" id="x-ignore-zero-${graph.id}" ${graph.filters.x.ignoreZero ? 'checked' : ''}>
+                        <label for="x-ignore-zero-${graph.id}" class="checkbox-label">Ignore 0 values</label>
                     </div>
                     <div class="filter-row">
                         <div class="filter-input-group">
                             <label>Min</label>
-                            <input type="number" id="x-min-${graph.id}" value="${graph.filters.x.min || ''}" step="any">
+                            <input type="number" id="x-min-${graph.id}" class="filter-input-small" value="${graph.filters.x.min || ''}" step="any">
                         </div>
                         <div class="filter-input-group">
                             <label>Max</label>
-                            <input type="number" id="x-max-${graph.id}" value="${graph.filters.x.max || ''}" step="any">
+                            <input type="number" id="x-max-${graph.id}" class="filter-input-small" value="${graph.filters.x.max || ''}" step="any">
                         </div>
+                    </div>
+                    <div class="dual-slider-container" id="x-slider-container-${graph.id}">
+                        <div class="dual-slider-track">
+                            <div class="dual-slider-range" id="x-slider-range-${graph.id}"></div>
+                        </div>
+                        <input type="range" class="dual-slider dual-slider-min" id="x-slider-min-${graph.id}">
+                        <input type="range" class="dual-slider dual-slider-max" id="x-slider-max-${graph.id}">
                     </div>
                 </div>
                 <div class="filter-section">
-                    <div class="filter-section-header-row">
-                        <div class="filter-section-title">Y-Axis Filter</div>
-                        <div class="checkbox-group-inline">
-                            <input type="checkbox" id="y-ignore-zero-${graph.id}" ${graph.filters.y.ignoreZero ? 'checked' : ''}>
-                            <label for="y-ignore-zero-${graph.id}">Ignore 0</label>
-                        </div>
+                    <div class="filter-section-label" id="y-filter-label-${graph.id}">${graph.columns.y || 'Y-Axis'} Filter</div>
+                    <div class="filter-ignore-row">
+                        <input type="checkbox" id="y-ignore-zero-${graph.id}" ${graph.filters.y.ignoreZero ? 'checked' : ''}>
+                        <label for="y-ignore-zero-${graph.id}" class="checkbox-label">Ignore 0 values</label>
                     </div>
                     <div class="filter-row">
                         <div class="filter-input-group">
                             <label>Min</label>
-                            <input type="number" id="y-min-${graph.id}" value="${graph.filters.y.min || ''}" step="any">
+                            <input type="number" id="y-min-${graph.id}" class="filter-input-small" value="${graph.filters.y.min || ''}" step="any">
                         </div>
                         <div class="filter-input-group">
                             <label>Max</label>
-                            <input type="number" id="y-max-${graph.id}" value="${graph.filters.y.max || ''}" step="any">
+                            <input type="number" id="y-max-${graph.id}" class="filter-input-small" value="${graph.filters.y.max || ''}" step="any">
                         </div>
+                    </div>
+                    <div class="dual-slider-container" id="y-slider-container-${graph.id}">
+                        <div class="dual-slider-track">
+                            <div class="dual-slider-range" id="y-slider-range-${graph.id}"></div>
+                        </div>
+                        <input type="range" class="dual-slider dual-slider-min" id="y-slider-min-${graph.id}">
+                        <input type="range" class="dual-slider dual-slider-max" id="y-slider-max-${graph.id}">
                     </div>
                 </div>
                 <div class="filter-section" id="z-filter-group-${graph.id}" style="${is3D ? '' : 'display:none'}">
-                    <div class="filter-section-header-row">
-                        <div class="filter-section-title">Z-Axis Filter</div>
-                        <div class="checkbox-group-inline">
-                            <input type="checkbox" id="z-ignore-zero-${graph.id}" ${graph.filters.z.ignoreZero ? 'checked' : ''}>
-                            <label for="z-ignore-zero-${graph.id}">Ignore 0</label>
-                        </div>
+                    <div class="filter-section-label" id="z-filter-label-${graph.id}">${graph.columns.z || 'Z-Axis'} Filter</div>
+                    <div class="filter-ignore-row">
+                        <input type="checkbox" id="z-ignore-zero-${graph.id}" ${graph.filters.z.ignoreZero ? 'checked' : ''}>
+                        <label for="z-ignore-zero-${graph.id}" class="checkbox-label">Ignore 0 values</label>
                     </div>
                     <div class="filter-row">
                         <div class="filter-input-group">
                             <label>Min</label>
-                            <input type="number" id="z-min-${graph.id}" value="${graph.filters.z.min || ''}" step="any">
+                            <input type="number" id="z-min-${graph.id}" class="filter-input-small" value="${graph.filters.z.min || ''}" step="any">
                         </div>
                         <div class="filter-input-group">
                             <label>Max</label>
-                            <input type="number" id="z-max-${graph.id}" value="${graph.filters.z.max || ''}" step="any">
+                            <input type="number" id="z-max-${graph.id}" class="filter-input-small" value="${graph.filters.z.max || ''}" step="any">
                         </div>
+                    </div>
+                    <div class="dual-slider-container" id="z-slider-container-${graph.id}">
+                        <div class="dual-slider-track">
+                            <div class="dual-slider-range" id="z-slider-range-${graph.id}"></div>
+                        </div>
+                        <input type="range" class="dual-slider dual-slider-min" id="z-slider-min-${graph.id}">
+                        <input type="range" class="dual-slider dual-slider-max" id="z-slider-max-${graph.id}">
                     </div>
                 </div>
                 <div class="filter-panel-spacer"></div>
@@ -595,22 +620,42 @@ function setupAutoUpdateListeners(graphId) {
         });
     }
 
-    // Column selects - immediate update
+    // Column selects - immediate update + filter label/range updates
     ['x-col', 'y-col', 'z-col', 'color-col'].forEach(prefix => {
         const select = document.getElementById(`${prefix}-${graphId}`);
         if (select) {
             select.addEventListener('change', () => {
                 saveToHistory(graphId);
+
+                // Extract axis from prefix (x-col -> x)
+                const axis = prefix.split('-')[0];
+                if (['x', 'y', 'z'].includes(axis)) {
+                    // Update graph.columns FIRST so updateFilterLabel reads the new value
+                    const graph = state.graphs.find(g => g.id === graphId);
+                    if (graph) {
+                        graph.columns[axis] = select.value;
+                    }
+                    // Update filter label with new column name
+                    updateFilterLabel(graphId, axis);
+                    // Recalculate data range for this axis
+                    updateFilterDataRanges(graphId);
+                    // Reset filter values to full range
+                    resetFilterToFullRange(graphId, axis);
+                }
+
                 updateGraph(graphId);
             });
         }
     });
 
-    // Filter number inputs - debounced
+    // Filter number inputs - debounced + sync to slider
     ['x-min', 'x-max', 'y-min', 'y-max', 'z-min', 'z-max'].forEach(prefix => {
         const input = document.getElementById(`${prefix}-${graphId}`);
         if (input) {
             input.addEventListener('input', () => {
+                // Sync text input to slider position
+                const axis = prefix.split('-')[0];
+                syncInputsToSlider(graphId, axis);
                 scheduleHistorySave(graphId);
                 getDebouncedUpdate(graphId)();
             });
@@ -627,6 +672,51 @@ function setupAutoUpdateListeners(graphId) {
             });
         }
     });
+
+    // Dual-handle slider listeners
+    ['x', 'y', 'z'].forEach(axis => {
+        const sliderMin = document.getElementById(`${axis}-slider-min-${graphId}`);
+        const sliderMax = document.getElementById(`${axis}-slider-max-${graphId}`);
+
+        if (sliderMin) {
+            // Real-time text update during drag
+            sliderMin.addEventListener('input', () => {
+                // Prevent min from exceeding max
+                const maxSlider = document.getElementById(`${axis}-slider-max-${graphId}`);
+                if (parseFloat(sliderMin.value) > parseFloat(maxSlider.value)) {
+                    sliderMin.value = maxSlider.value;
+                }
+                syncSliderToInputs(graphId, axis);
+            });
+
+            // Graph update on release
+            sliderMin.addEventListener('change', () => {
+                scheduleHistorySave(graphId);
+                updateGraph(graphId);
+            });
+        }
+
+        if (sliderMax) {
+            // Real-time text update during drag
+            sliderMax.addEventListener('input', () => {
+                // Prevent max from going below min
+                const minSlider = document.getElementById(`${axis}-slider-min-${graphId}`);
+                if (parseFloat(sliderMax.value) < parseFloat(minSlider.value)) {
+                    sliderMax.value = minSlider.value;
+                }
+                syncSliderToInputs(graphId, axis);
+            });
+
+            // Graph update on release
+            sliderMax.addEventListener('change', () => {
+                scheduleHistorySave(graphId);
+                updateGraph(graphId);
+            });
+        }
+    });
+
+    // Initialize filter data ranges and sliders
+    updateFilterDataRanges(graphId);
 }
 
 function getGraphTypeOptions(dimension, selected) {
@@ -677,6 +767,9 @@ function populateGraphControls(graph) {
     document.getElementById(`z-col-group-${graph.id}`).style.display = is3D ? '' : 'none';
     document.getElementById(`color-col-group-${graph.id}`).style.display = hasColor ? '' : 'none';
     document.getElementById(`z-filter-group-${graph.id}`).style.display = is3D ? '' : 'none';
+
+    // Update filter labels with current column names
+    updateAllFilterLabels(graph.id);
 }
 
 // ===== Event Handlers =====
@@ -692,6 +785,17 @@ function onSheetChange(graphId) {
     graph.columns.x = columns[0] || '';
     graph.columns.y = columns[1] || '';
     graph.columns.z = columns[2] || null;
+
+    // Recalculate filter ranges for new sheet data
+    updateFilterDataRanges(graphId);
+
+    // Reset all filters to full range
+    ['x', 'y', 'z'].forEach(axis => {
+        resetFilterToFullRange(graphId, axis);
+    });
+
+    // Update filter labels with new column names
+    updateAllFilterLabels(graphId);
 
     populateGraphControls(graph);
     updateGraph(graphId);
@@ -773,6 +877,193 @@ function filterData(data, graph) {
 
         return true;
     });
+}
+
+// ===== Filter Slider Helpers =====
+function getColumnDataRange(graphId, axis) {
+    const graph = state.graphs.find(g => g.id === graphId);
+    if (!graph) return { min: 0, max: 100 };
+
+    const data = state.allData[graph.sheetName] || [];
+    const columnName = graph.columns[axis];
+    if (!columnName) return { min: 0, max: 100 };
+
+    const values = data
+        .map(row => parseFloat(row[columnName]))
+        .filter(v => !isNaN(v) && isFinite(v));
+
+    if (values.length === 0) return { min: 0, max: 100 };
+
+    return {
+        min: Math.min(...values),
+        max: Math.max(...values)
+    };
+}
+
+function updateFilterDataRanges(graphId) {
+    const graph = state.graphs.find(g => g.id === graphId);
+    if (!graph) return;
+
+    const ranges = {
+        x: getColumnDataRange(graphId, 'x'),
+        y: getColumnDataRange(graphId, 'y'),
+        z: getColumnDataRange(graphId, 'z')
+    };
+
+    filterDataRanges.set(graphId, ranges);
+    updateSliderRanges(graphId);
+}
+
+function updateFilterLabel(graphId, axis) {
+    const graph = state.graphs.find(g => g.id === graphId);
+    if (!graph) return;
+
+    const label = document.getElementById(`${axis}-filter-label-${graphId}`);
+    if (label) {
+        const columnName = graph.columns[axis] || `${axis.toUpperCase()}-Axis`;
+        label.textContent = `${columnName} Filter`;
+    }
+}
+
+function updateAllFilterLabels(graphId) {
+    updateFilterLabel(graphId, 'x');
+    updateFilterLabel(graphId, 'y');
+    updateFilterLabel(graphId, 'z');
+}
+
+function updateSliderRanges(graphId) {
+    const ranges = filterDataRanges.get(graphId);
+    if (!ranges) return;
+
+    const graph = state.graphs.find(g => g.id === graphId);
+    if (!graph) return;
+
+    ['x', 'y', 'z'].forEach(axis => {
+        const range = ranges[axis];
+        const sliderMin = document.getElementById(`${axis}-slider-min-${graphId}`);
+        const sliderMax = document.getElementById(`${axis}-slider-max-${graphId}`);
+
+        if (sliderMin && sliderMax) {
+            // Set slider range based on data
+            sliderMin.min = range.min;
+            sliderMin.max = range.max;
+            sliderMax.min = range.min;
+            sliderMax.max = range.max;
+
+            // Calculate step for smooth sliding (about 200 steps)
+            const dataRange = range.max - range.min;
+            const step = dataRange > 0 ? dataRange / 200 : 1;
+            sliderMin.step = step;
+            sliderMax.step = step;
+
+            // Set positions based on current filter values or full range
+            const filterMin = graph.filters[axis].min ?? range.min;
+            const filterMax = graph.filters[axis].max ?? range.max;
+            sliderMin.value = filterMin;
+            sliderMax.value = filterMax;
+
+            updateSliderRangeVisual(graphId, axis);
+
+            // Also update text inputs to show current slider values
+            syncSliderToInputs(graphId, axis);
+        }
+    });
+}
+
+function updateSliderRangeVisual(graphId, axis) {
+    const ranges = filterDataRanges.get(graphId);
+    if (!ranges) return;
+
+    const range = ranges[axis];
+    const sliderMin = document.getElementById(`${axis}-slider-min-${graphId}`);
+    const sliderMax = document.getElementById(`${axis}-slider-max-${graphId}`);
+    const rangeDiv = document.getElementById(`${axis}-slider-range-${graphId}`);
+
+    if (!sliderMin || !sliderMax || !rangeDiv) return;
+
+    const minVal = parseFloat(sliderMin.value);
+    const maxVal = parseFloat(sliderMax.value);
+    const totalRange = range.max - range.min;
+
+    if (totalRange === 0) {
+        rangeDiv.style.left = '0%';
+        rangeDiv.style.width = '100%';
+        return;
+    }
+
+    const leftPercent = ((minVal - range.min) / totalRange) * 100;
+    const rightPercent = ((maxVal - range.min) / totalRange) * 100;
+
+    rangeDiv.style.left = `${leftPercent}%`;
+    rangeDiv.style.width = `${rightPercent - leftPercent}%`;
+}
+
+function syncSliderToInputs(graphId, axis) {
+    const sliderMin = document.getElementById(`${axis}-slider-min-${graphId}`);
+    const sliderMax = document.getElementById(`${axis}-slider-max-${graphId}`);
+    const inputMin = document.getElementById(`${axis}-min-${graphId}`);
+    const inputMax = document.getElementById(`${axis}-max-${graphId}`);
+
+    if (sliderMin && inputMin) {
+        const val = parseFloat(sliderMin.value);
+        inputMin.value = Number.isInteger(val) ? val : val.toFixed(2);
+    }
+    if (sliderMax && inputMax) {
+        const val = parseFloat(sliderMax.value);
+        inputMax.value = Number.isInteger(val) ? val : val.toFixed(2);
+    }
+
+    updateSliderRangeVisual(graphId, axis);
+}
+
+function syncInputsToSlider(graphId, axis) {
+    const ranges = filterDataRanges.get(graphId);
+    if (!ranges) return;
+
+    const range = ranges[axis];
+    const sliderMin = document.getElementById(`${axis}-slider-min-${graphId}`);
+    const sliderMax = document.getElementById(`${axis}-slider-max-${graphId}`);
+    const inputMin = document.getElementById(`${axis}-min-${graphId}`);
+    const inputMax = document.getElementById(`${axis}-max-${graphId}`);
+
+    if (sliderMin && inputMin) {
+        let val = parseFloat(inputMin.value);
+        if (isNaN(val)) val = range.min;
+        val = Math.max(range.min, Math.min(range.max, val));
+        sliderMin.value = val;
+    }
+    if (sliderMax && inputMax) {
+        let val = parseFloat(inputMax.value);
+        if (isNaN(val)) val = range.max;
+        val = Math.max(range.min, Math.min(range.max, val));
+        sliderMax.value = val;
+    }
+
+    updateSliderRangeVisual(graphId, axis);
+}
+
+function resetFilterToFullRange(graphId, axis) {
+    const graph = state.graphs.find(g => g.id === graphId);
+    const ranges = filterDataRanges.get(graphId);
+    if (!graph || !ranges) return;
+
+    // Clear filter values (null means no filter = full range)
+    graph.filters[axis].min = null;
+    graph.filters[axis].max = null;
+
+    // Update UI - clear text inputs
+    const inputMin = document.getElementById(`${axis}-min-${graphId}`);
+    const inputMax = document.getElementById(`${axis}-max-${graphId}`);
+    if (inputMin) inputMin.value = '';
+    if (inputMax) inputMax.value = '';
+
+    // Update sliders to full range
+    const sliderMin = document.getElementById(`${axis}-slider-min-${graphId}`);
+    const sliderMax = document.getElementById(`${axis}-slider-max-${graphId}`);
+    if (sliderMin) sliderMin.value = ranges[axis].min;
+    if (sliderMax) sliderMax.value = ranges[axis].max;
+
+    updateSliderRangeVisual(graphId, axis);
 }
 
 // ===== Graph Rendering =====
@@ -862,6 +1153,15 @@ function updateGraph(graphId) {
 
     // Render
     const plotDiv = document.getElementById(`plot-${graphId}`);
+
+    // Preserve camera position for 3D graphs
+    if (is3D && plotDiv._fullLayout && plotDiv._fullLayout.scene && plotDiv._fullLayout.scene._scene) {
+        const currentCamera = plotDiv._fullLayout.scene._scene.getCamera();
+        if (currentCamera) {
+            layout.scene.camera = currentCamera;
+        }
+    }
+
     Plotly.react(plotDiv, traces, layout, { responsive: true });
 }
 
@@ -2072,7 +2372,7 @@ function initializeExampleGraph() {
     // Add graph and configure as 3D with Color
     addGraph();
     const graph = state.graphs[0];
-    graph.title = 'Gaussian Ripple';
+    graph.title = 'Gaussian Ripple Example Data';
     graph.dimension = '3D with Color';
     graph.graphType = '3D Scatter';
     graph.columns.x = 'X';
