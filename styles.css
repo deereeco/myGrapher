@@ -268,6 +268,17 @@ input[type="number"]::-webkit-inner-spin-button {
     height: 18px;
 }
 
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.btn:disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
 .btn-primary {
     background: linear-gradient(135deg, var(--primary-start), var(--primary-end));
     color: white;
@@ -649,6 +660,18 @@ input[type="number"]::-webkit-inner-spin-button {
     font-size: 16px;
     font-weight: 600;
     color: var(--text-dark);
+}
+
+.modal-actions {
+    padding-top: 20px;
+    border-top: 1px solid var(--border-light);
+    margin-top: 24px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.modal-actions .btn {
+    min-width: 140px;
 }
 
 /* ===== Overlay Items ===== */

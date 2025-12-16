@@ -8,6 +8,177 @@ const state = {
 // Graph counter for unique IDs
 let graphIdCounter = 0;
 
+// ===== Undo/Redo History System =====
+const graphHistory = new Map(); // graphId -> { past: [], future: [] }
+const debouncedUpdates = new Map(); // graphId -> debounced update function
+const pendingHistorySaves = new Map(); // graphId -> { snapshot, timeoutId }
+
+function initGraphHistory(graphId) {
+    graphHistory.set(graphId, { past: [], future: [] });
+}
+
+function createGraphSnapshot(graph) {
+    return JSON.parse(JSON.stringify({
+        title: graph.title,
+        sheetName: graph.sheetName,
+        dimension: graph.dimension,
+        graphType: graph.graphType,
+        columns: graph.columns,
+        filters: graph.filters,
+        overlayPoints: graph.overlayPoints,
+        overlayLines: graph.overlayLines,
+        overlaySurfaces: graph.overlaySurfaces,
+        hoverFields: graph.hoverFields
+    }));
+}
+
+function saveToHistory(graphId) {
+    const graph = state.graphs.find(g => g.id === graphId);
+    if (!graph) return;
+
+    const history = graphHistory.get(graphId);
+    if (!history) return;
+
+    const snapshot = createGraphSnapshot(graph);
+    history.past.push(snapshot);
+    history.future = [];
+
+    if (history.past.length > 25) {
+        history.past.shift();
+    }
+
+    updateUndoRedoButtons(graphId);
+}
+
+function restoreGraphState(graph, snapshot) {
+    graph.title = snapshot.title;
+    graph.sheetName = snapshot.sheetName;
+    graph.dimension = snapshot.dimension;
+    graph.graphType = snapshot.graphType;
+    graph.columns = { ...snapshot.columns };
+    graph.filters = JSON.parse(JSON.stringify(snapshot.filters));
+    graph.overlayPoints = JSON.parse(JSON.stringify(snapshot.overlayPoints));
+    graph.overlayLines = JSON.parse(JSON.stringify(snapshot.overlayLines));
+    graph.overlaySurfaces = JSON.parse(JSON.stringify(snapshot.overlaySurfaces));
+    graph.hoverFields = [...snapshot.hoverFields];
+}
+
+function updateFiltersUI(graphId, graph) {
+    document.getElementById(`x-min-${graphId}`).value = graph.filters.x.min ?? '';
+    document.getElementById(`x-max-${graphId}`).value = graph.filters.x.max ?? '';
+    document.getElementById(`x-ignore-zero-${graphId}`).checked = graph.filters.x.ignoreZero;
+    document.getElementById(`y-min-${graphId}`).value = graph.filters.y.min ?? '';
+    document.getElementById(`y-max-${graphId}`).value = graph.filters.y.max ?? '';
+    document.getElementById(`y-ignore-zero-${graphId}`).checked = graph.filters.y.ignoreZero;
+    const zMinEl = document.getElementById(`z-min-${graphId}`);
+    if (zMinEl) {
+        zMinEl.value = graph.filters.z.min ?? '';
+        document.getElementById(`z-max-${graphId}`).value = graph.filters.z.max ?? '';
+        document.getElementById(`z-ignore-zero-${graphId}`).checked = graph.filters.z.ignoreZero;
+    }
+}
+
+function updateUndoRedoButtons(graphId) {
+    const history = graphHistory.get(graphId);
+    const undoBtn = document.getElementById(`undo-btn-${graphId}`);
+    const redoBtn = document.getElementById(`redo-btn-${graphId}`);
+
+    if (undoBtn) undoBtn.disabled = !history || history.past.length === 0;
+    if (redoBtn) redoBtn.disabled = !history || history.future.length === 0;
+}
+
+function undo(graphId) {
+    const graph = state.graphs.find(g => g.id === graphId);
+    const history = graphHistory.get(graphId);
+    if (!graph || !history || history.past.length === 0) return;
+
+    history.future.push(createGraphSnapshot(graph));
+    const previousState = history.past.pop();
+    restoreGraphState(graph, previousState);
+
+    populateGraphControls(graph);
+    document.getElementById(`title-${graphId}`).value = graph.title;
+    updateFiltersUI(graphId, graph);
+    updateGraph(graphId);
+    updateUndoRedoButtons(graphId);
+}
+
+function redo(graphId) {
+    const graph = state.graphs.find(g => g.id === graphId);
+    const history = graphHistory.get(graphId);
+    if (!graph || !history || history.future.length === 0) return;
+
+    history.past.push(createGraphSnapshot(graph));
+    const nextState = history.future.pop();
+    restoreGraphState(graph, nextState);
+
+    populateGraphControls(graph);
+    document.getElementById(`title-${graphId}`).value = graph.title;
+    updateFiltersUI(graphId, graph);
+    updateGraph(graphId);
+    updateUndoRedoButtons(graphId);
+}
+
+// ===== Debounce Utilities =====
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+function getDebouncedUpdate(graphId) {
+    if (!debouncedUpdates.has(graphId)) {
+        debouncedUpdates.set(graphId, debounce(() => {
+            updateGraph(graphId);
+        }, 300));
+    }
+    return debouncedUpdates.get(graphId);
+}
+
+function scheduleHistorySave(graphId) {
+    if (pendingHistorySaves.has(graphId)) {
+        clearTimeout(pendingHistorySaves.get(graphId).timeoutId);
+    }
+
+    const existingEntry = pendingHistorySaves.get(graphId);
+    if (!existingEntry || !existingEntry.snapshot) {
+        const graph = state.graphs.find(g => g.id === graphId);
+        if (!graph) return;
+        pendingHistorySaves.set(graphId, {
+            snapshot: createGraphSnapshot(graph),
+            timeoutId: null
+        });
+    }
+
+    const entry = pendingHistorySaves.get(graphId);
+    entry.timeoutId = setTimeout(() => {
+        commitPendingHistorySave(graphId);
+    }, 300);
+}
+
+function commitPendingHistorySave(graphId) {
+    const entry = pendingHistorySaves.get(graphId);
+    if (!entry || !entry.snapshot) return;
+
+    const history = graphHistory.get(graphId);
+    if (history) {
+        history.past.push(entry.snapshot);
+        history.future = [];
+        if (history.past.length > 25) {
+            history.past.shift();
+        }
+    }
+
+    pendingHistorySaves.delete(graphId);
+    updateUndoRedoButtons(graphId);
+}
+
 // ===== DOM Elements =====
 const excelFileInput = document.getElementById('excel-file');
 const fileNameDisplay = document.getElementById('file-name');
@@ -157,6 +328,7 @@ function createGraphObject() {
 function addGraph() {
     const graph = createGraphObject();
     state.graphs.push(graph);
+    initGraphHistory(graph.id);
     renderGraphSection(graph);
     updateGraph(graph.id);
 }
@@ -170,6 +342,12 @@ function deleteGraph(graphId) {
         state.graphs.splice(index, 1);
         const section = document.getElementById(`graph-section-${graphId}`);
         if (section) section.remove();
+
+        // Clean up history and debounce state
+        graphHistory.delete(graphId);
+        debouncedUpdates.delete(graphId);
+        pendingHistorySaves.delete(graphId);
+
         showToast('Graph deleted', 'info');
     }
 }
@@ -180,15 +358,19 @@ function copyGraphSettings(targetGraphId, sourceGraphId) {
 
     if (!source || !target) return;
 
+    saveToHistory(targetGraphId);
+
     target.sheetName = source.sheetName;
     target.dimension = source.dimension;
     target.graphType = source.graphType;
     target.columns = { ...source.columns };
     target.filters = JSON.parse(JSON.stringify(source.filters));
 
-    // Update UI
+    // Update UI and render
     populateGraphControls(target);
-    showToast('Settings copied. Click "Update Graph" to apply.', 'info');
+    updateFiltersUI(targetGraphId, target);
+    updateGraph(targetGraphId);
+    showToast('Settings copied and applied.', 'success');
 }
 
 // ===== Graph Section Rendering =====
@@ -211,6 +393,20 @@ function renderGraphSection(graph) {
         <div class="graph-section-header">
             <span class="graph-section-title">Graph #${graph.id}</span>
             <div class="graph-section-actions">
+                <button id="undo-btn-${graph.id}" class="btn btn-outline btn-small" onclick="undo(${graph.id})" title="Undo" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                        <path d="M3 10h10a5 5 0 0 1 5 5v2"></path>
+                        <path d="M3 10l4-4"></path>
+                        <path d="M3 10l4 4"></path>
+                    </svg>
+                </button>
+                <button id="redo-btn-${graph.id}" class="btn btn-outline btn-small" onclick="redo(${graph.id})" title="Redo" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                        <path d="M21 10H11a5 5 0 0 0-5 5v2"></path>
+                        <path d="M21 10l-4-4"></path>
+                        <path d="M21 10l-4 4"></path>
+                    </svg>
+                </button>
                 <button class="btn btn-danger btn-small" onclick="deleteGraph(${graph.id})">
                     Delete
                 </button>
@@ -273,7 +469,7 @@ function renderGraphSection(graph) {
                 </div>
                 <div class="graph-display-wrapper">
                     <div class="graph-display" id="plot-${graph.id}"></div>
-                    <button class="graph-corner-btn top-left btn btn-primary btn-small" onclick="updateGraph(${graph.id})" title="Update Graph">
+                    <button class="graph-corner-btn top-left btn btn-outline btn-small" onclick="updateGraph(${graph.id})" title="Refresh Graph">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M23 4v6h-6"></path>
                             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
@@ -384,6 +580,53 @@ function renderGraphSection(graph) {
     `;
 
     graphsContainer.appendChild(section);
+
+    // Add auto-update event listeners
+    setupAutoUpdateListeners(graph.id);
+}
+
+function setupAutoUpdateListeners(graphId) {
+    // Title input - debounced
+    const titleInput = document.getElementById(`title-${graphId}`);
+    if (titleInput) {
+        titleInput.addEventListener('input', () => {
+            scheduleHistorySave(graphId);
+            getDebouncedUpdate(graphId)();
+        });
+    }
+
+    // Column selects - immediate update
+    ['x-col', 'y-col', 'z-col', 'color-col'].forEach(prefix => {
+        const select = document.getElementById(`${prefix}-${graphId}`);
+        if (select) {
+            select.addEventListener('change', () => {
+                saveToHistory(graphId);
+                updateGraph(graphId);
+            });
+        }
+    });
+
+    // Filter number inputs - debounced
+    ['x-min', 'x-max', 'y-min', 'y-max', 'z-min', 'z-max'].forEach(prefix => {
+        const input = document.getElementById(`${prefix}-${graphId}`);
+        if (input) {
+            input.addEventListener('input', () => {
+                scheduleHistorySave(graphId);
+                getDebouncedUpdate(graphId)();
+            });
+        }
+    });
+
+    // Filter checkboxes - immediate update
+    ['x-ignore-zero', 'y-ignore-zero', 'z-ignore-zero'].forEach(prefix => {
+        const checkbox = document.getElementById(`${prefix}-${graphId}`);
+        if (checkbox) {
+            checkbox.addEventListener('change', () => {
+                saveToHistory(graphId);
+                updateGraph(graphId);
+            });
+        }
+    });
 }
 
 function getGraphTypeOptions(dimension, selected) {
@@ -441,6 +684,8 @@ function onSheetChange(graphId) {
     const graph = state.graphs.find(g => g.id === graphId);
     if (!graph) return;
 
+    saveToHistory(graphId);
+
     graph.sheetName = document.getElementById(`sheet-${graphId}`).value;
     const columns = state.columnOrder[graph.sheetName] || [];
 
@@ -449,11 +694,14 @@ function onSheetChange(graphId) {
     graph.columns.z = columns[2] || null;
 
     populateGraphControls(graph);
+    updateGraph(graphId);
 }
 
 function onDimensionClick(graphId, dimension) {
     const graph = state.graphs.find(g => g.id === graphId);
     if (!graph) return;
+
+    saveToHistory(graphId);
 
     graph.dimension = dimension;
 
@@ -468,11 +716,14 @@ function onDimensionClick(graphId, dimension) {
     graph.graphType = is3D ? '3D Scatter' : 'Scatter';
 
     populateGraphControls(graph);
+    updateGraph(graphId);
 }
 
 function onTypeClick(graphId, type) {
     const graph = state.graphs.find(g => g.id === graphId);
     if (!graph) return;
+
+    saveToHistory(graphId);
 
     graph.graphType = type;
 
@@ -481,6 +732,8 @@ function onTypeClick(graphId, type) {
     container.querySelectorAll('.option-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.value === type);
     });
+
+    updateGraph(graphId);
 }
 
 function handleCopySettings(graphId) {
@@ -1154,11 +1407,20 @@ async function copyToClipboard(graphId) {
 
 // ===== Advanced Options Modal =====
 let currentModalGraphId = null;
+let modalOpenSnapshot = null; // Snapshot of overlay state when modal opened
 
 function openAdvancedOptions(graphId) {
     currentModalGraphId = graphId;
     const graph = state.graphs.find(g => g.id === graphId);
     if (!graph) return;
+
+    // Save snapshot of current state for potential revert on X
+    modalOpenSnapshot = {
+        overlayPoints: JSON.parse(JSON.stringify(graph.overlayPoints)),
+        overlayLines: JSON.parse(JSON.stringify(graph.overlayLines)),
+        overlaySurfaces: JSON.parse(JSON.stringify(graph.overlaySurfaces)),
+        hoverFields: [...graph.hoverFields]
+    };
 
     const is3D = graph.dimension.includes('3D');
     const columns = state.columnOrder[graph.sheetName] || [];
@@ -1225,6 +1487,13 @@ function openAdvancedOptions(graphId) {
                 <p><strong>Variables:</strong> <code>x</code>, <code>y</code>, <code>z</code>, <code>t</code>, <code>u</code>, <code>v</code></p>
                 <p style="margin-top:8px;"><strong>Examples:</strong> <code>2*x + 3</code>, <code>sin(x) * cos(y)</code>, <code>sqrt(x^2 + y^2)</code></p>
             </div>
+        </div>
+
+        <!-- Apply Changes Button -->
+        <div class="modal-actions">
+            <button class="btn btn-success" onclick="applyAdvancedOptions()">
+                Apply Changes
+            </button>
         </div>
     `;
 
@@ -1705,14 +1974,66 @@ function updateHoverFields() {
 }
 
 // ===== Modal Close =====
-modalClose.addEventListener('click', closeModal);
+// X button - discard changes and restore from snapshot
+modalClose.addEventListener('click', discardAndCloseModal);
+
+// Click outside - soft close (keep changes but don't apply)
 modalOverlay.addEventListener('click', (e) => {
-    if (e.target === modalOverlay) closeModal();
+    if (e.target === modalOverlay) softCloseModal();
 });
 
-function closeModal() {
+function applyAdvancedOptions() {
+    const graph = state.graphs.find(g => g.id === currentModalGraphId);
+    if (!graph || !modalOpenSnapshot) {
+        closeModalCleanup();
+        return;
+    }
+
+    // Save the snapshot as the "before" state for undo
+    const history = graphHistory.get(currentModalGraphId);
+    if (history) {
+        // Create a full graph snapshot but with the OLD overlay data
+        const beforeSnapshot = createGraphSnapshot(graph);
+        beforeSnapshot.overlayPoints = modalOpenSnapshot.overlayPoints;
+        beforeSnapshot.overlayLines = modalOpenSnapshot.overlayLines;
+        beforeSnapshot.overlaySurfaces = modalOpenSnapshot.overlaySurfaces;
+        beforeSnapshot.hoverFields = modalOpenSnapshot.hoverFields;
+
+        history.past.push(beforeSnapshot);
+        history.future = [];
+        if (history.past.length > 25) {
+            history.past.shift();
+        }
+        updateUndoRedoButtons(currentModalGraphId);
+    }
+
+    // Update the graph with current state
+    updateGraph(currentModalGraphId);
+    showToast('Advanced options applied', 'success');
+    closeModalCleanup();
+}
+
+function discardAndCloseModal() {
+    // Restore from snapshot (discard changes)
+    const graph = state.graphs.find(g => g.id === currentModalGraphId);
+    if (graph && modalOpenSnapshot) {
+        graph.overlayPoints = JSON.parse(JSON.stringify(modalOpenSnapshot.overlayPoints));
+        graph.overlayLines = JSON.parse(JSON.stringify(modalOpenSnapshot.overlayLines));
+        graph.overlaySurfaces = JSON.parse(JSON.stringify(modalOpenSnapshot.overlaySurfaces));
+        graph.hoverFields = [...modalOpenSnapshot.hoverFields];
+    }
+    closeModalCleanup();
+}
+
+function softCloseModal() {
+    // Just close - keep changes in state but don't apply to graph
+    closeModalCleanup();
+}
+
+function closeModalCleanup() {
     modalOverlay.classList.remove('active');
     currentModalGraphId = null;
+    modalOpenSnapshot = null;
 }
 
 // ===== Add Graph Button =====
