@@ -157,8 +157,9 @@
 
 **Graph Display:**
 - White background, 2px gray border, 8px rounded corners
-- Resizable (drag corner, min 400×300px)
 - Default size: full width × 500px height
+- Button to open graph in new window
+- Button to copy current graph view to clipboard
 - Fullscreen mode (ESC to exit)
 - Plotly toolbar: zoom, pan, rotate, camera, download PNG, reset axes
 
