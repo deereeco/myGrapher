@@ -65,9 +65,25 @@ Each graph in `state.graphs` has this shape:
 
 **Graph Lifecycle:**
 - `createGraphObject()` - Creates new graph config with defaults
-- `addGraph()` - Adds graph to state and renders
-- `deleteGraph(graphId)` - Removes graph with confirmation
+- `addGraph()` - Adds graph to state, initializes history, renders
+- `deleteGraph(graphId)` - Removes graph with confirmation, cleans up history
 - `copyGraphSettings(targetId, sourceId)` - Copies config between graphs
+
+**Undo/Redo System:**
+- `graphHistory` Map - Stores `{ past: [], future: [] }` per graph (25 steps max)
+- `initGraphHistory(graphId)` - Initialize history for new graph
+- `saveToHistory(graphId)` - Capture state before changes
+- `undo(graphId)` / `redo(graphId)` - Restore previous/next state
+- `createGraphSnapshot(graph)` - Deep clone graph config
+- `restoreGraphState(graph, snapshot)` - Apply snapshot to graph
+- `updateUndoRedoButtons(graphId)` - Enable/disable buttons based on history
+
+**Auto-Update System:**
+- `debounce(func, wait)` - Standard debounce utility
+- `getDebouncedUpdate(graphId)` - Get/create 300ms debounced updateGraph
+- `scheduleHistorySave(graphId)` - Capture snapshot on first keystroke
+- `commitPendingHistorySave(graphId)` - Finalize history after debounce
+- `setupAutoUpdateListeners(graphId)` - Wire up all input event listeners
 
 **Rendering:**
 - `renderAllGraphs()` - Re-renders all graph sections
@@ -98,12 +114,16 @@ Each graph in `state.graphs` has this shape:
 - `openInNewWindow(graphId)` - Open graph in popup window
 - `copyToClipboard(graphId)` - Copy graph image to clipboard
 
-**Modal System:**
-- `openAdvancedOptions(graphId)` - Opens overlay/hover config modal
-- `closeModal()` - Closes modal
-- `addOverlayPoint/Line/Surface()` - Add overlay items
-- `updateOverlayPoint/Line/Surface(index)` - Update from modal inputs
-- `deleteOverlayPoint/Line/Surface(index)` - Remove overlay items
+**Modal System (Draft/Apply Workflow):**
+- `openAdvancedOptions(graphId)` - Opens modal, captures snapshot for potential revert
+- `applyAdvancedOptions()` - Commits changes, saves to history, updates graph
+- `discardAndCloseModal()` - X button handler, restores from snapshot
+- `softCloseModal()` - Click-outside handler, keeps changes but doesn't apply
+- `closeModalCleanup()` - Clears modal state
+- `modalOpenSnapshot` - Stores overlay/hover state when modal opens
+- `addOverlayPoint/Line/Surface()` - Add overlay items (no graph update)
+- `updateOverlayPoint/Line/Surface(index)` - Update from modal inputs (no graph update)
+- `deleteOverlayPoint/Line/Surface(index)` - Remove overlay items (no graph update)
 
 ### Graph Types
 - **2D**: Scatter, Line, Bar
@@ -155,10 +175,22 @@ Chrome 90+, Firefox 88+, Safari 14+, Edge 90+
 
 - Functions use camelCase
 - DOM IDs use kebab-case with graph ID suffix (e.g., `plot-1`, `x-col-1`)
-- State updates happen in event handlers, then `updateGraph()` re-renders
+- State updates happen in event handlers, graph auto-updates via listeners
 - Toast notifications via `showToast(message, type)` where type is 'success'|'error'|'info'|'warning'
 - Confirmation dialogs use native `confirm()`
-- Modal state tracked via `currentModalGraphId`
+- Modal state tracked via `currentModalGraphId` and `modalOpenSnapshot`
+
+### Auto-Update Behavior
+- **Immediate update**: Dropdowns, buttons, checkboxes trigger instant graph refresh
+- **Debounced update (300ms)**: Text inputs, number inputs wait for typing to stop
+- **Manual refresh button**: Kept as fallback, de-emphasized styling
+- **Modal changes**: Only applied when user clicks "Apply Changes"
+
+### Undo/Redo Behavior
+- Each user action = one undo step (cascading internal changes are grouped)
+- 25-step history per graph
+- History cleared when graph is deleted
+- Undo/Redo buttons in graph header, next to Delete
 
 ### UI Layout
 Each graph section has a 3-column layout:
@@ -199,3 +231,6 @@ Manual testing workflow:
 8. Test fullscreen, new window, clipboard buttons
 9. Test Advanced Options modal (overlays, hover fields)
 10. Test responsive layout at different screen widths
+11. Test auto-update (changes apply automatically without clicking refresh)
+12. Test undo/redo buttons (make changes, click undo, click redo)
+13. Test Advanced Options Apply/Discard (add overlay, click Apply vs X button)

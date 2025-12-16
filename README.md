@@ -24,6 +24,8 @@ All graph types support an optional **color dimension** to add a fourth variable
 - Copy settings between graphs
 - Delete individual graphs
 - Editable graph titles
+- **Undo/Redo** - 25-step history per graph
+- **Auto-update** - Graphs refresh automatically as you make changes
 
 ### Data Filtering
 Per-axis filters for X, Y, and Z:
@@ -58,7 +60,8 @@ Supported in overlay equations:
 - **Variables**: `x`, `y`, `z`, `t`, `u`, `v`
 
 ### Graph Actions
-- **Update Graph** - Apply configuration changes
+- **Undo/Redo** - Revert or redo changes (25-step history)
+- **Refresh** - Manual graph refresh (fallback, auto-update handles most cases)
 - **Fullscreen** - Expand graph to full viewport (ESC to exit)
 - **New Window** - Open graph in a popup window
 - **Copy** - Copy graph image to clipboard
@@ -84,10 +87,11 @@ Then visit http://localhost:8000
 ### Quick Start
 1. The app loads with example data - explore the interface
 2. Click "Choose Excel File" to upload your own data
-3. Configure graph type, columns, and filters
-4. Click "Update Graph" to render
-5. Use "Advanced Options" for overlays and custom hover data
-6. Add more graphs with the "Add Graph" button
+3. Configure graph type, columns, and filters - graph updates automatically
+4. Use "Advanced Options" for overlays and custom hover data
+5. Click "Apply Changes" in the modal to apply overlay/hover settings
+6. Use Undo/Redo buttons to revert mistakes
+7. Add more graphs with the "Add Graph" button
 
 ## Browser Support
 
