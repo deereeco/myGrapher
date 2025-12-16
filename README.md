@@ -1,6 +1,6 @@
 # Excel Data Grapher
 
-![Excel Data Grapher](Pictures/cover%20photo.png)
+![Excel Data Grapher](Pictures/cover%20%20photo.png)
 
 A web application for visualizing data from Excel files using interactive 2D and 3D graphs powered by Plotly.js.
 
