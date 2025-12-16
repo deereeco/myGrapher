@@ -1,5 +1,7 @@
 # Excel Data Grapher
 
+![Excel Data Grapher](Pictures/cover%20photo.png)
+
 A web application for visualizing data from Excel files using interactive 2D and 3D graphs powered by Plotly.js.
 
 ## Features
@@ -33,6 +35,7 @@ Per-axis filters for X, Y, and Z with intuitive controls:
 - **Dual-handle range sliders** - Drag min/max handles to filter data visually
 - **Text inputs** - Type exact values or see current slider positions
 - **Ignore zero values** - Checkbox to exclude zero values
+- **Engineering notation** - Display axis values with SI prefixes (k, M, G, etc.)
 - **Auto-detected range** - Slider bounds automatically set from column data
 
 Sliders and text inputs are bidirectionally synced. Graph updates on slider release for smooth interaction. Filters combine with AND logic.
@@ -63,8 +66,10 @@ Supported in overlay equations:
 
 ### Graph Actions
 - **Undo/Redo** - Revert or redo changes (25-step history)
-- **Refresh** - Manual graph refresh (fallback, auto-update handles most cases)
-- **Fullscreen** - Expand graph to full viewport (ESC to exit)
+- **Refresh** - Manual graph refresh (top-right corner, fallback for auto-update)
+- **Fullscreen** - Expand graph to full viewport (top-left corner)
+  - Minimize button appears in fullscreen mode
+  - Press ESC or click minimize to exit
 - **New Window** - Open graph in a popup window
 - **Copy** - Copy graph image to clipboard
 
@@ -74,6 +79,9 @@ Supported in overlay equations:
 
 ### Custom Hover Data
 Select which columns appear in hover tooltips beyond the default X, Y, Z values.
+
+### Overlay Hover Control
+Option to disable hover tooltips on overlay items (points, lines, surfaces) while keeping main data hover active.
 
 ## Getting Started
 

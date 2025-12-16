@@ -29,7 +29,8 @@ function createGraphSnapshot(graph) {
         overlayPoints: graph.overlayPoints,
         overlayLines: graph.overlayLines,
         overlaySurfaces: graph.overlaySurfaces,
-        hoverFields: graph.hoverFields
+        hoverFields: graph.hoverFields,
+        disableOverlayHover: graph.disableOverlayHover
     }));
 }
 
@@ -62,6 +63,7 @@ function restoreGraphState(graph, snapshot) {
     graph.overlayLines = JSON.parse(JSON.stringify(snapshot.overlayLines));
     graph.overlaySurfaces = JSON.parse(JSON.stringify(snapshot.overlaySurfaces));
     graph.hoverFields = [...snapshot.hoverFields];
+    graph.disableOverlayHover = snapshot.disableOverlayHover || false;
 }
 
 function updateFiltersUI(graphId, graph) {
@@ -77,6 +79,14 @@ function updateFiltersUI(graphId, graph) {
         document.getElementById(`z-max-${graphId}`).value = graph.filters.z.max ?? '';
         document.getElementById(`z-ignore-zero-${graphId}`).checked = graph.filters.z.ignoreZero;
     }
+
+    // Update engineering notation checkboxes
+    ['x', 'y', 'z'].forEach(axis => {
+        const engCheckbox = document.getElementById(`${axis}-eng-notation-${graphId}`);
+        if (engCheckbox) {
+            engCheckbox.checked = graph.filters[axis].engineeringNotation || false;
+        }
+    });
 
     // Update sliders to match restored filter values
     syncInputsToSlider(graphId, 'x');
@@ -323,14 +333,15 @@ function createGraphObject() {
             color: null
         },
         filters: {
-            x: { min: null, max: null, ignoreZero: false },
-            y: { min: null, max: null, ignoreZero: false },
-            z: { min: null, max: null, ignoreZero: false }
+            x: { min: null, max: null, ignoreZero: false, engineeringNotation: false },
+            y: { min: null, max: null, ignoreZero: false, engineeringNotation: false },
+            z: { min: null, max: null, ignoreZero: false, engineeringNotation: false }
         },
         overlayPoints: [],
         overlayLines: [],
         overlaySurfaces: [],
-        hoverFields: []
+        hoverFields: [],
+        disableOverlayHover: false
     };
 }
 
@@ -479,13 +490,13 @@ function renderGraphSection(graph) {
                 </div>
                 <div class="graph-display-wrapper">
                     <div class="graph-display" id="plot-${graph.id}"></div>
-                    <button class="graph-corner-btn top-left btn btn-outline btn-small" onclick="updateGraph(${graph.id})" title="Refresh Graph">
+                    <button class="graph-corner-btn top-right btn btn-outline btn-small" onclick="updateGraph(${graph.id})" title="Refresh Graph">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M23 4v6h-6"></path>
                             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
                         </svg>
                     </button>
-                    <button class="graph-corner-btn top-right btn btn-info btn-small" onclick="toggleFullscreen(${graph.id})" title="Fullscreen">
+                    <button class="graph-corner-btn top-left btn btn-info btn-small" onclick="toggleFullscreen(${graph.id})" title="Fullscreen">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
                         </svg>
@@ -523,6 +534,10 @@ function renderGraphSection(graph) {
                         <input type="checkbox" id="x-ignore-zero-${graph.id}" ${graph.filters.x.ignoreZero ? 'checked' : ''}>
                         <label for="x-ignore-zero-${graph.id}" class="checkbox-label">Ignore 0 values</label>
                     </div>
+                    <div class="filter-ignore-row">
+                        <input type="checkbox" id="x-eng-notation-${graph.id}" ${graph.filters.x.engineeringNotation ? 'checked' : ''}>
+                        <label for="x-eng-notation-${graph.id}" class="checkbox-label">Engineering notation</label>
+                    </div>
                     <div class="filter-row">
                         <div class="filter-input-group">
                             <label>Min</label>
@@ -547,6 +562,10 @@ function renderGraphSection(graph) {
                         <input type="checkbox" id="y-ignore-zero-${graph.id}" ${graph.filters.y.ignoreZero ? 'checked' : ''}>
                         <label for="y-ignore-zero-${graph.id}" class="checkbox-label">Ignore 0 values</label>
                     </div>
+                    <div class="filter-ignore-row">
+                        <input type="checkbox" id="y-eng-notation-${graph.id}" ${graph.filters.y.engineeringNotation ? 'checked' : ''}>
+                        <label for="y-eng-notation-${graph.id}" class="checkbox-label">Engineering notation</label>
+                    </div>
                     <div class="filter-row">
                         <div class="filter-input-group">
                             <label>Min</label>
@@ -570,6 +589,10 @@ function renderGraphSection(graph) {
                     <div class="filter-ignore-row">
                         <input type="checkbox" id="z-ignore-zero-${graph.id}" ${graph.filters.z.ignoreZero ? 'checked' : ''}>
                         <label for="z-ignore-zero-${graph.id}" class="checkbox-label">Ignore 0 values</label>
+                    </div>
+                    <div class="filter-ignore-row">
+                        <input type="checkbox" id="z-eng-notation-${graph.id}" ${graph.filters.z.engineeringNotation ? 'checked' : ''}>
+                        <label for="z-eng-notation-${graph.id}" class="checkbox-label">Engineering notation</label>
                     </div>
                     <div class="filter-row">
                         <div class="filter-input-group">
@@ -668,6 +691,21 @@ function setupAutoUpdateListeners(graphId) {
         if (checkbox) {
             checkbox.addEventListener('change', () => {
                 saveToHistory(graphId);
+                updateGraph(graphId);
+            });
+        }
+    });
+
+    // Engineering notation checkboxes - immediate update
+    ['x', 'y', 'z'].forEach(axis => {
+        const engCheckbox = document.getElementById(`${axis}-eng-notation-${graphId}`);
+        if (engCheckbox) {
+            engCheckbox.addEventListener('change', () => {
+                saveToHistory(graphId);
+                const graph = state.graphs.find(g => g.id === graphId);
+                if (graph) {
+                    graph.filters[axis].engineeringNotation = engCheckbox.checked;
+                }
                 updateGraph(graphId);
             });
         }
@@ -1085,12 +1123,15 @@ function updateGraph(graphId) {
     graph.filters.x.min = parseFloatOrNull(document.getElementById(`x-min-${graphId}`).value);
     graph.filters.x.max = parseFloatOrNull(document.getElementById(`x-max-${graphId}`).value);
     graph.filters.x.ignoreZero = document.getElementById(`x-ignore-zero-${graphId}`).checked;
+    graph.filters.x.engineeringNotation = document.getElementById(`x-eng-notation-${graphId}`)?.checked || false;
     graph.filters.y.min = parseFloatOrNull(document.getElementById(`y-min-${graphId}`).value);
     graph.filters.y.max = parseFloatOrNull(document.getElementById(`y-max-${graphId}`).value);
     graph.filters.y.ignoreZero = document.getElementById(`y-ignore-zero-${graphId}`).checked;
+    graph.filters.y.engineeringNotation = document.getElementById(`y-eng-notation-${graphId}`)?.checked || false;
     graph.filters.z.min = parseFloatOrNull(document.getElementById(`z-min-${graphId}`)?.value);
     graph.filters.z.max = parseFloatOrNull(document.getElementById(`z-max-${graphId}`)?.value);
     graph.filters.z.ignoreZero = document.getElementById(`z-ignore-zero-${graphId}`)?.checked || false;
+    graph.filters.z.engineeringNotation = document.getElementById(`z-eng-notation-${graphId}`)?.checked || false;
 
     // Get and filter data
     const rawData = state.allData[graph.sheetName] || [];
@@ -1109,10 +1150,13 @@ function updateGraph(graphId) {
     const mainTrace = buildMainTrace(filteredData, graph, is3D, hasColor);
     traces.push(mainTrace);
 
+    // Get overlay hover setting
+    const disableOverlayHover = graph.disableOverlayHover || false;
+
     // Add overlay points
     graph.overlayPoints.forEach((point, index) => {
         try {
-            traces.push(buildPointTrace(point, is3D));
+            traces.push(buildPointTrace(point, is3D, disableOverlayHover));
         } catch (error) {
             showToast(`Error in overlay point "${point.name || `Point ${index + 1}`}": ${error.message}`, 'error');
         }
@@ -1121,7 +1165,7 @@ function updateGraph(graphId) {
     // Add overlay lines
     graph.overlayLines.forEach((line, index) => {
         try {
-            const lineTrace = buildLineTrace(line, graph, filteredData, is3D);
+            const lineTrace = buildLineTrace(line, graph, filteredData, is3D, disableOverlayHover);
             if (lineTrace && lineTrace.x && lineTrace.x.length > 0) {
                 traces.push(lineTrace);
             } else {
@@ -1136,7 +1180,7 @@ function updateGraph(graphId) {
     if (is3D) {
         graph.overlaySurfaces.forEach((surface, index) => {
             try {
-                const surfaceTrace = buildSurfaceTrace(surface, graph, filteredData);
+                const surfaceTrace = buildSurfaceTrace(surface, graph, filteredData, disableOverlayHover);
                 if (surfaceTrace) {
                     traces.push(surfaceTrace);
                 } else {
@@ -1250,7 +1294,7 @@ function buildMainTrace(data, graph, is3D, hasColor) {
     return trace;
 }
 
-function buildPointTrace(point, is3D) {
+function buildPointTrace(point, is3D, disableHover = false) {
     const symbolMap = {
         circle: 'circle',
         square: 'square',
@@ -1271,13 +1315,13 @@ function buildPointTrace(point, is3D) {
             size: point.size,
             symbol: symbolMap[point.symbol] || 'circle'
         },
-        hoverinfo: 'name+x+y'
+        hoverinfo: disableHover ? 'skip' : 'name+x+y'
     };
 
     if (is3D) {
         trace.z = [point.z];
         trace.type = 'scatter3d';
-        trace.hoverinfo = 'name+x+y+z';
+        trace.hoverinfo = disableHover ? 'skip' : 'name+x+y+z';
     } else {
         trace.type = 'scatter';
     }
@@ -1285,7 +1329,7 @@ function buildPointTrace(point, is3D) {
     return trace;
 }
 
-function buildLineTrace(line, graph, data, is3D) {
+function buildLineTrace(line, graph, data, is3D, disableHover = false) {
     let x = [], y = [], z = [];
 
     if (line.mode === 'equation') {
@@ -1326,7 +1370,7 @@ function buildLineTrace(line, graph, data, is3D) {
             color: line.color,
             width: line.width
         },
-        hoverinfo: 'name'
+        hoverinfo: disableHover ? 'skip' : 'name'
     };
 
     if (is3D) {
@@ -1339,12 +1383,12 @@ function buildLineTrace(line, graph, data, is3D) {
     return trace;
 }
 
-function buildSurfaceTrace(surface, graph, data) {
+function buildSurfaceTrace(surface, graph, data, disableHover = false) {
     if (surface.mode === 'surface') {
         if (!surface.surfaceEquation || !surface.surfaceEquation.equation || surface.surfaceEquation.equation.trim() === '') {
             throw new Error('Surface equation is empty. Please enter an equation.');
         }
-        return buildSurfaceFromEquation(surface, graph, data);
+        return buildSurfaceFromEquation(surface, graph, data, disableHover);
     } else if (surface.mode === 'parametric') {
         if (!surface.parametricEquations) {
             throw new Error('Parametric equations are missing.');
@@ -1353,17 +1397,17 @@ function buildSurfaceTrace(surface, graph, data) {
         if (!x || !y || !z || x.trim() === '' || y.trim() === '' || z.trim() === '') {
             throw new Error('All three parametric equations (x, y, z) are required.');
         }
-        return buildParametricSurface(surface, graph, data);
+        return buildParametricSurface(surface, graph, data, disableHover);
     } else if (surface.mode === 'points') {
         if (!surface.points || surface.points.length < 3) {
             throw new Error('At least 3 points are required for a surface mesh.');
         }
-        return buildMeshFromPoints(surface);
+        return buildMeshFromPoints(surface, disableHover);
     }
     return null;
 }
 
-function buildSurfaceFromEquation(surface, graph, data) {
+function buildSurfaceFromEquation(surface, graph, data, disableHover = false) {
     const { variable, equation } = surface.surfaceEquation;
 
     // Get data ranges
@@ -1415,7 +1459,8 @@ function buildSurfaceFromEquation(surface, graph, data) {
             name: surface.name,
             colorscale: [[0, surface.color], [1, surface.color]],
             opacity: surface.opacity,
-            showscale: false
+            showscale: false,
+            hoverinfo: disableHover ? 'skip' : 'x+y+z+name'
         };
     }
 
@@ -1462,11 +1507,12 @@ function buildSurfaceFromEquation(surface, graph, data) {
         name: surface.name,
         color: surface.color,
         opacity: surface.opacity,
-        alphahull: 0
+        alphahull: 0,
+        hoverinfo: disableHover ? 'skip' : 'x+y+z+name'
     };
 }
 
-function buildParametricSurface(surface, graph, data) {
+function buildParametricSurface(surface, graph, data, disableHover = false) {
     const { x: xEq, y: yEq, z: zEq } = surface.parametricEquations;
     const gridSize = 30;
 
@@ -1505,11 +1551,12 @@ function buildParametricSurface(surface, graph, data) {
         name: surface.name,
         colorscale: [[0, surface.color], [1, surface.color]],
         opacity: surface.opacity,
-        showscale: false
+        showscale: false,
+        hoverinfo: disableHover ? 'skip' : 'x+y+z+name'
     };
 }
 
-function buildMeshFromPoints(surface) {
+function buildMeshFromPoints(surface, disableHover = false) {
     const x = surface.points.map(p => p.x);
     const y = surface.points.map(p => p.y);
     const z = surface.points.map(p => p.z);
@@ -1522,7 +1569,8 @@ function buildMeshFromPoints(surface) {
         name: surface.name,
         color: surface.color,
         opacity: surface.opacity,
-        alphahull: 0 // Delaunay triangulation
+        alphahull: 0, // Delaunay triangulation
+        hoverinfo: disableHover ? 'skip' : 'x+y+z+name'
     };
 }
 
@@ -1543,16 +1591,29 @@ function buildLayout(graph, is3D) {
         margin: { l: 60, r: hasColor ? 100 : 30, t: 60, b: 80 }
     };
 
+    // Helper function for axis config with optional engineering notation
+    const getAxisConfig = (axis, title, includeZeroline = true) => {
+        const config = { title, gridcolor: '#e2e8f0' };
+        if (graph.filters[axis]?.engineeringNotation) {
+            config.tickformat = '.3s';  // SI prefixes: k, M, G, T, etc.
+            config.exponentformat = 'SI';
+        }
+        if (!is3D && includeZeroline) {
+            config.zeroline = false;
+        }
+        return config;
+    };
+
     if (is3D) {
         layout.scene = {
-            xaxis: { title: graph.columns.x, gridcolor: '#e2e8f0' },
-            yaxis: { title: graph.columns.y, gridcolor: '#e2e8f0' },
-            zaxis: { title: graph.columns.z, gridcolor: '#e2e8f0' },
+            xaxis: getAxisConfig('x', graph.columns.x, false),
+            yaxis: getAxisConfig('y', graph.columns.y, false),
+            zaxis: getAxisConfig('z', graph.columns.z, false),
             bgcolor: 'white'
         };
     } else {
-        layout.xaxis = { title: graph.columns.x, gridcolor: '#e2e8f0', zeroline: false };
-        layout.yaxis = { title: graph.columns.y, gridcolor: '#e2e8f0', zeroline: false };
+        layout.xaxis = getAxisConfig('x', graph.columns.x);
+        layout.yaxis = getAxisConfig('y', graph.columns.y);
     }
 
     return layout;
@@ -1634,9 +1695,28 @@ function toggleFullscreen(graphId) {
 
     if (plotDiv.classList.contains('fullscreen')) {
         plotDiv.classList.remove('fullscreen');
+        // Remove the exit fullscreen button
+        const exitBtn = plotDiv.querySelector('.fullscreen-exit-btn');
+        if (exitBtn) exitBtn.remove();
         Plotly.Plots.resize(plotDiv);
     } else {
         plotDiv.classList.add('fullscreen');
+
+        // Add exit fullscreen button inside the plot
+        const exitBtn = document.createElement('button');
+        exitBtn.className = 'fullscreen-exit-btn btn btn-info btn-small';
+        exitBtn.title = 'Exit Fullscreen (ESC)';
+        exitBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 14h6v6"></path>
+                <path d="M20 10h-6V4"></path>
+                <path d="M14 10l7-7"></path>
+                <path d="M3 21l7-7"></path>
+            </svg>
+        `;
+        exitBtn.onclick = () => toggleFullscreen(graphId);
+        plotDiv.appendChild(exitBtn);
+
         Plotly.Plots.resize(plotDiv);
 
         // Show notification
@@ -1654,6 +1734,9 @@ document.addEventListener('keydown', (e) => {
         const fullscreenPlot = document.querySelector('.graph-display.fullscreen');
         if (fullscreenPlot) {
             fullscreenPlot.classList.remove('fullscreen');
+            // Remove the exit fullscreen button
+            const exitBtn = fullscreenPlot.querySelector('.fullscreen-exit-btn');
+            if (exitBtn) exitBtn.remove();
             Plotly.Plots.resize(fullscreenPlot);
         }
     }
@@ -1719,7 +1802,8 @@ function openAdvancedOptions(graphId) {
         overlayPoints: JSON.parse(JSON.stringify(graph.overlayPoints)),
         overlayLines: JSON.parse(JSON.stringify(graph.overlayLines)),
         overlaySurfaces: JSON.parse(JSON.stringify(graph.overlaySurfaces)),
-        hoverFields: [...graph.hoverFields]
+        hoverFields: [...graph.hoverFields],
+        disableOverlayHover: graph.disableOverlayHover
     };
 
     const is3D = graph.dimension.includes('3D');
@@ -1760,6 +1844,17 @@ function openAdvancedOptions(graphId) {
             </div>
         </div>
         ` : ''}
+
+        <!-- Overlay Hover Settings Section -->
+        <div class="modal-section">
+            <div class="modal-section-header">
+                <h3 class="modal-section-title">Overlay Hover Settings</h3>
+            </div>
+            <div class="checkbox-group" style="padding: 8px 0;">
+                <input type="checkbox" id="disable-overlay-hover" ${graph.disableOverlayHover ? 'checked' : ''}>
+                <label for="disable-overlay-hover">Disable hover tooltips on overlay items</label>
+            </div>
+        </div>
 
         <!-- Custom Hover Data Section -->
         <div class="modal-section">
@@ -2298,6 +2393,7 @@ function applyAdvancedOptions() {
         beforeSnapshot.overlayLines = modalOpenSnapshot.overlayLines;
         beforeSnapshot.overlaySurfaces = modalOpenSnapshot.overlaySurfaces;
         beforeSnapshot.hoverFields = modalOpenSnapshot.hoverFields;
+        beforeSnapshot.disableOverlayHover = modalOpenSnapshot.disableOverlayHover;
 
         history.past.push(beforeSnapshot);
         history.future = [];
@@ -2305,6 +2401,12 @@ function applyAdvancedOptions() {
             history.past.shift();
         }
         updateUndoRedoButtons(currentModalGraphId);
+    }
+
+    // Update disableOverlayHover from checkbox
+    const disableHoverCheckbox = document.getElementById('disable-overlay-hover');
+    if (disableHoverCheckbox) {
+        graph.disableOverlayHover = disableHoverCheckbox.checked;
     }
 
     // Update the graph with current state
@@ -2321,6 +2423,7 @@ function discardAndCloseModal() {
         graph.overlayLines = JSON.parse(JSON.stringify(modalOpenSnapshot.overlayLines));
         graph.overlaySurfaces = JSON.parse(JSON.stringify(modalOpenSnapshot.overlaySurfaces));
         graph.hoverFields = [...modalOpenSnapshot.hoverFields];
+        graph.disableOverlayHover = modalOpenSnapshot.disableOverlayHover;
     }
     closeModalCleanup();
 }
@@ -2343,18 +2446,20 @@ addGraphBtn.addEventListener('click', addGraph);
 function initializeExampleGraph() {
     // Create example data: 3D Gaussian-modulated ripple
     // Focused on the interesting curved region with dense sampling
+    // Values scaled up by 1000 to demonstrate engineering notation (k, M prefixes)
     const exampleData = [];
     const gridSize = 35;
     const range = 4; // Tighter range to focus on the peak
+    const scale = 1000; // Scale factor to make engineering notation visible
 
     for (let i = 0; i < gridSize; i++) {
         for (let j = 0; j < gridSize; j++) {
-            const x = (i / (gridSize - 1)) * 2 * range - range;
-            const y = (j / (gridSize - 1)) * 2 * range - range;
+            const x = ((i / (gridSize - 1)) * 2 * range - range) * scale;
+            const y = ((j / (gridSize - 1)) * 2 * range - range) * scale;
             const r = Math.sqrt(x * x + y * y);
 
             // Gaussian-modulated cosine - creates a nice dome with ripples
-            const z = Math.cos(r * 1.5) * Math.exp(-r * r / 8);
+            const z = Math.cos(r / scale * 1.5) * Math.exp(-r * r / (scale * scale * 8)) * scale;
 
             exampleData.push({
                 'X': x,
