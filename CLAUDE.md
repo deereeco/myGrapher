@@ -31,6 +31,12 @@ const state = {
 };
 ```
 
+### Theme System
+Theme state is managed via:
+- `data-theme` attribute on `<html>` element ('dark' | 'light')
+- localStorage key 'theme' for persistence
+- CSS variables swap automatically based on `[data-theme="dark"]` selector
+
 ### Graph Object Structure
 Each graph in `state.graphs` has this shape:
 ```javascript
@@ -60,6 +66,10 @@ Each graph in `state.graphs` has this shape:
 ```
 
 ### Key Functions
+
+**Theme Management:**
+- `initTheme()` - Load saved theme from localStorage (defaults to 'dark')
+- `toggleTheme()` - Switch between dark/light, save to localStorage, re-render graphs
 
 **File Handling:**
 - `handleFileSelect()` - Parses Excel files with ExcelJS, populates state
@@ -246,6 +256,7 @@ Each graph section has a 3-column layout:
 - Copy settings: `copy-from-{id}`
 - Modal: `disable-overlay-hover` (checkbox)
 - Fullscreen: `.fullscreen-exit-btn` (dynamically added button)
+- Theme toggle: `theme-toggle` (button), `.sun-icon`, `.moon-icon`
 - Overlay point labels: `point-x-label-{index}`, `point-y-label-{index}`, `point-z-label-{index}`
 - Line point labels: `line-pt-x-label-{lineIndex}-{pointIndex}`, etc.
 - Surface point labels: `surface-pt-x-label-{surfaceIndex}-{pointIndex}`, etc.
@@ -262,7 +273,12 @@ Manual testing workflow:
 3. Add/delete/configure graphs
 4. Test dimension buttons (2D/2D+Color/3D/3D+Color) - graph type buttons should update
 5. Test graph type buttons (Scatter/Line/Bar for 2D, 3D Scatter for 3D)
-6. Test filters:
+6. Test theme toggle:
+   - Click sun/moon button in top-right of header
+   - Dark mode: dark header and page background, dark Plotly graphs
+   - Light mode: purple header, light backgrounds
+   - Refresh page - theme preference should persist
+7. Test filters:
    - Filter labels should show column names (e.g., "X Filter" becomes "Radius Filter" when column changes)
    - Dual-handle sliders should update text inputs in real-time while dragging
    - Text inputs should update slider positions when edited

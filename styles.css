@@ -32,6 +32,9 @@ body {
     --info-hover: #2563eb;
     --warning: #f59e0b;
     --background: #ffffff;
+    --surface: #f8fafc;
+    --surface-alt: #f1f5f9;
+    --input-bg: #ffffff;
     --text-dark: #1e293b;
     --text-medium: #475569;
     --text-light: #64748b;
@@ -39,6 +42,31 @@ body {
     --border-medium: #cbd5e1;
     --shadow: rgba(0, 0, 0, 0.1);
     --shadow-lg: rgba(0, 0, 0, 0.15);
+}
+
+/* ===== Dark Theme ===== */
+[data-theme="dark"] {
+    --primary-start: #818cf8;
+    --primary-end: #a78bfa;
+    --background: #1e293b;
+    --surface: #334155;
+    --surface-alt: #3f4f65;
+    --input-bg: #1e293b;
+    --text-dark: #f1f5f9;
+    --text-medium: #cbd5e1;
+    --text-light: #94a3b8;
+    --border-light: #475569;
+    --border-medium: #64748b;
+    --shadow: rgba(0, 0, 0, 0.3);
+    --shadow-lg: rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] body {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+}
+
+[data-theme="dark"] .header {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
 }
 
 /* ===== Typography ===== */
@@ -56,6 +84,7 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ===== Header ===== */
 .header {
+    position: relative;
     background: linear-gradient(135deg, var(--primary-start) 0%, var(--primary-end) 100%);
     padding: 24px 20px;
     color: white;
@@ -69,6 +98,52 @@ h1, h2, h3, h4, h5, h6 {
     flex-direction: column;
     align-items: center;
     gap: 20px;
+}
+
+/* ===== Theme Toggle Button ===== */
+.theme-toggle {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.theme-toggle:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: scale(1.1);
+}
+
+.theme-toggle svg {
+    width: 22px;
+    height: 22px;
+    color: white;
+    transition: opacity 0.2s ease, transform 0.3s ease;
+}
+
+/* Show sun icon in dark mode, moon icon in light mode */
+.sun-icon {
+    display: none;
+}
+
+.moon-icon {
+    display: block;
+}
+
+[data-theme="dark"] .sun-icon {
+    display: block;
+}
+
+[data-theme="dark"] .moon-icon {
+    display: none;
 }
 
 .title {
@@ -146,7 +221,7 @@ h1, h2, h3, h4, h5, h6 {
     justify-content: space-between;
     align-items: center;
     padding: 16px 20px;
-    background: #f8fafc;
+    background: var(--surface);
     border-bottom: 1px solid var(--border-light);
 }
 
@@ -198,7 +273,7 @@ select, input[type="text"], input[type="number"] {
     font-size: 14px;
     font-family: inherit;
     color: var(--text-dark);
-    background: white;
+    background: var(--input-bg);
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -359,7 +434,7 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 .graph-display {
-    background: white;
+    background: var(--background);
     border: 2px solid var(--border-light);
     border-radius: 8px;
     height: 600px;
@@ -454,7 +529,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .filter-section {
     padding: 12px;
-    background: #f8fafc;
+    background: var(--surface);
     border-radius: 8px;
     border: 1px solid var(--border-light);
 }
@@ -616,7 +691,7 @@ input[type="number"]::-webkit-inner-spin-button {
     align-items: center;
     gap: 12px;
     padding: 14px 20px;
-    background: white;
+    background: var(--background);
     border-radius: 8px;
     box-shadow: 0 4px 12px var(--shadow-lg);
     min-width: 300px;
@@ -686,7 +761,7 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 .modal {
-    background: white;
+    background: var(--background);
     border-radius: 12px;
     max-width: 800px;
     width: 100%;
@@ -771,7 +846,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 /* ===== Overlay Items ===== */
 .overlay-item {
-    background: #f8fafc;
+    background: var(--surface);
     border: 1px solid var(--border-light);
     border-radius: 8px;
     padding: 16px;
@@ -844,11 +919,12 @@ input[type="number"]::-webkit-inner-spin-button {
 .mode-btn {
     padding: 8px 16px;
     border: 2px solid var(--border-medium);
-    background: white;
+    background: var(--background);
     border-radius: 6px;
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
+    color: var(--text-dark);
     transition: all 0.2s ease;
 }
 
@@ -870,7 +946,7 @@ input[type="number"]::-webkit-inner-spin-button {
     align-items: center;
     gap: 8px;
     padding: 8px 12px;
-    background: #f8fafc;
+    background: var(--surface);
     border-radius: 6px;
     border: 1px solid var(--border-light);
 }
@@ -891,7 +967,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 /* ===== Expression Reference ===== */
 .expression-reference {
-    background: #f8fafc;
+    background: var(--surface);
     border: 1px solid var(--border-light);
     border-radius: 8px;
     padding: 16px;
@@ -904,7 +980,7 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 .expression-reference code {
-    background: white;
+    background: var(--background);
     padding: 2px 6px;
     border-radius: 4px;
     font-size: 13px;
@@ -931,7 +1007,7 @@ input[type="number"]::-webkit-inner-spin-button {
     gap: 8px;
     align-items: end;
     padding: 12px;
-    background: white;
+    background: var(--background);
     border: 1px solid var(--border-light);
     border-radius: 6px;
 }
@@ -974,7 +1050,7 @@ input[type="number"]::-webkit-inner-spin-button {
 .option-btn {
     padding: 6px 8px;
     border: 2px solid var(--border-light);
-    background: white;
+    background: var(--background);
     border-radius: 4px;
     font-size: 11px;
     font-weight: 600;
@@ -1009,7 +1085,7 @@ input[type="number"]::-webkit-inner-spin-button {
     flex-direction: column;
     gap: 8px;
     padding: 12px;
-    background: #f1f5f9;
+    background: var(--surface-alt);
     border-radius: 6px;
     border: 1px dashed var(--border-medium);
     margin-top: auto;
@@ -1039,7 +1115,7 @@ input[type="number"]::-webkit-inner-spin-button {
     .control-panel,
     .filter-panel {
         padding: 16px;
-        background: #f8fafc;
+        background: var(--surface);
         border-radius: 8px;
     }
 
@@ -1113,7 +1189,7 @@ input[type="color"] {
     border: 2px solid var(--border-light);
     border-radius: 6px;
     cursor: pointer;
-    background: white;
+    background: var(--input-bg);
 }
 
 input[type="color"]::-webkit-color-swatch-wrapper {

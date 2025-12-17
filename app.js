@@ -8,6 +8,22 @@ const state = {
 // Graph counter for unique IDs
 let graphIdCounter = 0;
 
+// ===== Theme Management =====
+function initTheme() {
+    const saved = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', saved);
+}
+
+function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme');
+    const newTheme = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+
+    // Re-render all graphs with new theme colors
+    state.graphs.forEach(g => updateGraph(g.id));
+}
+
 // ===== Undo/Redo History System =====
 const graphHistory = new Map(); // graphId -> { past: [], future: [] }
 const debouncedUpdates = new Map(); // graphId -> debounced update function
@@ -1240,6 +1256,14 @@ function buildMainTrace(data, graph, is3D, hasColor) {
     const z = is3D ? data.map(row => parseFloat(row[graph.columns.z])) : null;
     const colorValues = hasColor ? data.map(row => parseFloat(row[graph.columns.color])) : null;
 
+    // Theme-aware colorbar styling
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const textColor = isDark ? '#f1f5f9' : '#1e293b';
+    const colorbarConfig = {
+        title: { text: graph.columns.color, font: { color: textColor } },
+        tickfont: { color: textColor }
+    };
+
     // Build hover text
     const hoverText = data.map(row => {
         let text = `${graph.columns.x}: ${row[graph.columns.x]}<br>${graph.columns.y}: ${row[graph.columns.y]}`;
@@ -1275,7 +1299,7 @@ function buildMainTrace(data, graph, is3D, hasColor) {
         };
         if (hasColor) {
             trace.marker.color = colorValues;
-            trace.marker.colorbar = { title: graph.columns.color };
+            trace.marker.colorbar = colorbarConfig;
         }
     } else {
         switch (graph.graphType) {
@@ -1289,7 +1313,7 @@ function buildMainTrace(data, graph, is3D, hasColor) {
                 };
                 if (hasColor) {
                     trace.marker.color = colorValues;
-                    trace.marker.colorbar = { title: graph.columns.color };
+                    trace.marker.colorbar = colorbarConfig;
                 }
                 break;
             case 'Line':
@@ -1309,7 +1333,7 @@ function buildMainTrace(data, graph, is3D, hasColor) {
                         color: colorValues,
                         colorscale: 'Viridis',
                         showscale: true,
-                        colorbar: { title: graph.columns.color }
+                        colorbar: colorbarConfig
                     };
                 }
                 break;
@@ -1624,41 +1648,53 @@ function buildMeshFromPoints(surface, disableHover = false) {
 }
 
 function buildLayout(graph, is3D) {
+    // Get theme-aware colors
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const bgColor = isDark ? '#1e293b' : '#ffffff';
+    const gridColor = isDark ? '#475569' : '#e2e8f0';
+    const textColor = isDark ? '#f1f5f9' : '#1e293b';
+
     const hasColor = graph.dimension.includes('Color');
     const layout = {
-        title: graph.title,
+        title: {
+            text: graph.title,
+            font: { color: textColor }
+        },
         showlegend: true,
         legend: {
             orientation: 'h',
             x: 0.5,
             xanchor: 'center',
             y: -0.15,
-            yanchor: 'top'
+            yanchor: 'top',
+            font: { color: textColor }
         },
-        paper_bgcolor: 'white',
-        plot_bgcolor: 'white',
+        paper_bgcolor: bgColor,
+        plot_bgcolor: bgColor,
         margin: { l: 60, r: hasColor ? 100 : 30, t: 60, b: 80 }
     };
 
     // Helper function for axis config
-    const getAxisConfig = (axis, title, includeZeroline = true) => {
-        const config = { title, gridcolor: '#e2e8f0' };
-        if (!is3D && includeZeroline) {
-            config.zeroline = false;
-        }
-        return config;
-    };
+    const getAxisConfig = (axis, title) => ({
+        title: {
+            text: title,
+            font: { color: textColor }
+        },
+        gridcolor: gridColor,
+        tickfont: { color: textColor },
+        linecolor: gridColor
+    });
 
     if (is3D) {
         layout.scene = {
-            xaxis: getAxisConfig('x', graph.columns.x, false),
-            yaxis: getAxisConfig('y', graph.columns.y, false),
-            zaxis: getAxisConfig('z', graph.columns.z, false),
-            bgcolor: 'white'
+            xaxis: getAxisConfig('x', graph.columns.x),
+            yaxis: getAxisConfig('y', graph.columns.y),
+            zaxis: getAxisConfig('z', graph.columns.z),
+            bgcolor: bgColor
         };
     } else {
-        layout.xaxis = getAxisConfig('x', graph.columns.x);
-        layout.yaxis = getAxisConfig('y', graph.columns.y);
+        layout.xaxis = { ...getAxisConfig('x', graph.columns.x), zeroline: false };
+        layout.yaxis = { ...getAxisConfig('y', graph.columns.y), zeroline: false };
     }
 
     return layout;
@@ -2647,4 +2683,7 @@ function initializeExampleGraph() {
 }
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', initializeExampleGraph);
+document.addEventListener('DOMContentLoaded', () => {
+    initTheme();
+    initializeExampleGraph();
+});

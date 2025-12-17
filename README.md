@@ -79,6 +79,13 @@ Supported in overlay equations:
 - **Constants**: `pi`, `e`
 - **Variables**: `x`, `y`, `z`, `t`, `u`, `v`
 
+### Theme Support
+- **Dark mode** (default) - Dark backgrounds for reduced eye strain
+- **Light mode** - Traditional light backgrounds
+- Toggle via sun/moon button in top-right corner of header
+- Theme preference saved to localStorage and persists between sessions
+- Plotly graphs automatically match the selected theme
+
 ### Graph Actions
 - **Undo/Redo** - Revert or redo changes (25-step history)
 - **Refresh** - Manual graph refresh (top-right corner, fallback for auto-update)
