@@ -1118,6 +1118,12 @@ function updateGraph(graphId) {
 
     // Add overlay points
     graph.overlayPoints.forEach((point, index) => {
+        // Set default for legacy graphs
+        if (point.visible === undefined) point.visible = true;
+
+        // Skip hidden items
+        if (!point.visible) return;
+
         try {
             traces.push(buildPointTrace(point, is3D, disableOverlayHover));
         } catch (error) {
@@ -1127,6 +1133,12 @@ function updateGraph(graphId) {
 
     // Add overlay lines
     graph.overlayLines.forEach((line, index) => {
+        // Set default for legacy graphs
+        if (line.visible === undefined) line.visible = true;
+
+        // Skip hidden items
+        if (!line.visible) return;
+
         try {
             const lineTrace = buildLineTrace(line, graph, filteredData, is3D, disableOverlayHover);
             if (lineTrace && lineTrace.x && lineTrace.x.length > 0) {
@@ -1142,6 +1154,12 @@ function updateGraph(graphId) {
     // Add overlay surfaces (3D only)
     if (is3D) {
         graph.overlaySurfaces.forEach((surface, index) => {
+            // Set default for legacy graphs
+            if (surface.visible === undefined) surface.visible = true;
+
+            // Skip hidden items
+            if (!surface.visible) return;
+
             try {
                 const surfaceTrace = buildSurfaceTrace(surface, graph, filteredData, disableOverlayHover);
                 if (surfaceTrace) {
@@ -1427,8 +1445,9 @@ function buildSurfaceFromEquation(surface, graph, data, disableHover = false) {
         };
     }
 
-    // For y=f(x,z) or x=f(y,z), use mesh3d
+    // For y=f(x,z) or x=f(y,z), use mesh3d with explicit triangulation
     const vertices = { x: [], y: [], z: [] };
+    const indices = { i: [], j: [], k: [] };
 
     if (variable === 'y') {
         const xStep = (xRange.max - xRange.min) / (gridSize - 1);
@@ -1462,15 +1481,38 @@ function buildSurfaceFromEquation(surface, graph, data, disableHover = false) {
         validateSurfaceData(vertices.x, equation);
     }
 
+    // Generate triangle indices for regular grid
+    // Create two triangles for each quad in the grid
+    for (let i = 0; i < gridSize - 1; i++) {
+        for (let j = 0; j < gridSize - 1; j++) {
+            const topLeft = i * gridSize + j;
+            const topRight = topLeft + 1;
+            const bottomLeft = (i + 1) * gridSize + j;
+            const bottomRight = bottomLeft + 1;
+
+            // First triangle (top-left, top-right, bottom-left)
+            indices.i.push(topLeft);
+            indices.j.push(topRight);
+            indices.k.push(bottomLeft);
+
+            // Second triangle (bottom-left, top-right, bottom-right)
+            indices.i.push(bottomLeft);
+            indices.j.push(topRight);
+            indices.k.push(bottomRight);
+        }
+    }
+
     return {
         type: 'mesh3d',
         x: vertices.x,
         y: vertices.y,
         z: vertices.z,
+        i: indices.i,
+        j: indices.j,
+        k: indices.k,
         name: surface.name,
         color: surface.color,
         opacity: surface.opacity,
-        alphahull: 0,
         hoverinfo: disableHover ? 'skip' : 'x+y+z+name'
     };
 }
@@ -1771,9 +1813,13 @@ function openAdvancedOptions(graphId) {
     modalBody.innerHTML = `
         <!-- Overlay Points Section -->
         <div class="modal-section">
-            <div class="modal-section-header">
+            <div class="overlay-category-header">
                 <h3 class="modal-section-title">Overlay Points</h3>
-                <button class="btn btn-success btn-small" onclick="addOverlayPoint()">+ Add Point</button>
+                <div class="overlay-bulk-actions">
+                    <button class="btn btn-outline btn-small" onclick="toggleAllOverlayPoints(true)">Show All</button>
+                    <button class="btn btn-outline btn-small" onclick="toggleAllOverlayPoints(false)">Hide All</button>
+                    <button class="btn btn-success btn-small" onclick="addOverlayPoint()">+ Add Point</button>
+                </div>
             </div>
             <div id="overlay-points-list">
                 ${renderOverlayPoints(graph.overlayPoints, is3D)}
@@ -1782,9 +1828,13 @@ function openAdvancedOptions(graphId) {
 
         <!-- Overlay Lines Section -->
         <div class="modal-section">
-            <div class="modal-section-header">
+            <div class="overlay-category-header">
                 <h3 class="modal-section-title">Overlay Lines</h3>
-                <button class="btn btn-success btn-small" onclick="addOverlayLine()">+ Add Line</button>
+                <div class="overlay-bulk-actions">
+                    <button class="btn btn-outline btn-small" onclick="toggleAllOverlayLines(true)">Show All</button>
+                    <button class="btn btn-outline btn-small" onclick="toggleAllOverlayLines(false)">Hide All</button>
+                    <button class="btn btn-success btn-small" onclick="addOverlayLine()">+ Add Line</button>
+                </div>
             </div>
             <div id="overlay-lines-list">
                 ${renderOverlayLines(graph.overlayLines, is3D)}
@@ -1794,9 +1844,13 @@ function openAdvancedOptions(graphId) {
         <!-- Overlay Surfaces Section (3D only) -->
         ${is3D ? `
         <div class="modal-section">
-            <div class="modal-section-header">
+            <div class="overlay-category-header">
                 <h3 class="modal-section-title">Overlay Surfaces</h3>
-                <button class="btn btn-success btn-small" onclick="addOverlaySurface()">+ Add Surface</button>
+                <div class="overlay-bulk-actions">
+                    <button class="btn btn-outline btn-small" onclick="toggleAllOverlaySurfaces(true)">Show All</button>
+                    <button class="btn btn-outline btn-small" onclick="toggleAllOverlaySurfaces(false)">Hide All</button>
+                    <button class="btn btn-success btn-small" onclick="addOverlaySurface()">+ Add Surface</button>
+                </div>
             </div>
             <div id="overlay-surfaces-list">
                 ${renderOverlaySurfaces(graph.overlaySurfaces)}
@@ -1862,7 +1916,17 @@ function renderOverlayPoints(points, is3D) {
     return points.map((point, index) => `
         <div class="overlay-item">
             <div class="overlay-item-header">
-                <span class="overlay-item-title">Point ${index + 1}</span>
+                <div class="overlay-item-header-left">
+                    <input
+                        type="checkbox"
+                        id="point-visible-${index}"
+                        ${point.visible !== false ? 'checked' : ''}
+                        onchange="toggleOverlayPointVisibility(${index})"
+                    >
+                    <label for="point-visible-${index}" class="checkbox-label-inline">
+                        <span class="overlay-item-title">Point ${index + 1}</span>
+                    </label>
+                </div>
                 <button class="btn btn-danger btn-small" onclick="deleteOverlayPoint(${index})">Delete</button>
             </div>
             <div class="overlay-item-grid">
@@ -1917,7 +1981,17 @@ function renderOverlayLines(lines, is3D) {
     return lines.map((line, index) => `
         <div class="overlay-item">
             <div class="overlay-item-header">
-                <span class="overlay-item-title">Line ${index + 1}</span>
+                <div class="overlay-item-header-left">
+                    <input
+                        type="checkbox"
+                        id="line-visible-${index}"
+                        ${line.visible !== false ? 'checked' : ''}
+                        onchange="toggleOverlayLineVisibility(${index})"
+                    >
+                    <label for="line-visible-${index}" class="checkbox-label-inline">
+                        <span class="overlay-item-title">Line ${index + 1}</span>
+                    </label>
+                </div>
                 <button class="btn btn-danger btn-small" onclick="deleteOverlayLine(${index})">Delete</button>
             </div>
             <div class="overlay-item-row" style="margin-bottom:12px;">
@@ -1998,7 +2072,17 @@ function renderOverlaySurfaces(surfaces) {
     return surfaces.map((surface, index) => `
         <div class="overlay-item">
             <div class="overlay-item-header">
-                <span class="overlay-item-title">Surface ${index + 1}</span>
+                <div class="overlay-item-header-left">
+                    <input
+                        type="checkbox"
+                        id="surface-visible-${index}"
+                        ${surface.visible !== false ? 'checked' : ''}
+                        onchange="toggleOverlaySurfaceVisibility(${index})"
+                    >
+                    <label for="surface-visible-${index}" class="checkbox-label-inline">
+                        <span class="overlay-item-title">Surface ${index + 1}</span>
+                    </label>
+                </div>
                 <button class="btn btn-danger btn-small" onclick="deleteOverlaySurface(${index})">Delete</button>
             </div>
             <div class="overlay-item-row" style="margin-bottom:12px;">
@@ -2102,7 +2186,8 @@ function addOverlayPoint() {
         z: 0,
         color: '#ef4444',
         size: 12,
-        symbol: 'circle'
+        symbol: 'circle',
+        visible: true
     });
 
     refreshOverlayPointsList();
@@ -2114,6 +2199,26 @@ function deleteOverlayPoint(index) {
 
     graph.overlayPoints.splice(index, 1);
     refreshOverlayPointsList();
+}
+
+function toggleOverlayPointVisibility(index) {
+    const graph = state.graphs.find(g => g.id === currentModalGraphId);
+    if (!graph) return;
+
+    const point = graph.overlayPoints[index];
+    const checkbox = document.getElementById(`point-visible-${index}`);
+    point.visible = checkbox.checked;
+
+    updateGraph(currentModalGraphId);
+}
+
+function toggleAllOverlayPoints(visible) {
+    const graph = state.graphs.find(g => g.id === currentModalGraphId);
+    if (!graph) return;
+
+    graph.overlayPoints.forEach(point => point.visible = visible);
+    refreshOverlayPointsList();
+    updateGraph(currentModalGraphId);
 }
 
 function updateOverlayPoint(index) {
@@ -2150,7 +2255,8 @@ function addOverlayLine() {
         width: 2,
         mode: 'equation',
         equation: { y: '', z: '' },
-        points: []
+        points: [],
+        visible: true
     });
 
     refreshOverlayLinesList();
@@ -2162,6 +2268,26 @@ function deleteOverlayLine(index) {
 
     graph.overlayLines.splice(index, 1);
     refreshOverlayLinesList();
+}
+
+function toggleOverlayLineVisibility(index) {
+    const graph = state.graphs.find(g => g.id === currentModalGraphId);
+    if (!graph) return;
+
+    const line = graph.overlayLines[index];
+    const checkbox = document.getElementById(`line-visible-${index}`);
+    line.visible = checkbox.checked;
+
+    updateGraph(currentModalGraphId);
+}
+
+function toggleAllOverlayLines(visible) {
+    const graph = state.graphs.find(g => g.id === currentModalGraphId);
+    if (!graph) return;
+
+    graph.overlayLines.forEach(line => line.visible = visible);
+    refreshOverlayLinesList();
+    updateGraph(currentModalGraphId);
 }
 
 function updateOverlayLine(index) {
@@ -2236,7 +2362,8 @@ function addOverlaySurface() {
         mode: 'surface',
         surfaceEquation: { variable: 'z', equation: '' },
         parametricEquations: { x: '', y: '', z: '' },
-        points: []
+        points: [],
+        visible: true
     });
 
     refreshOverlaySurfacesList();
@@ -2248,6 +2375,26 @@ function deleteOverlaySurface(index) {
 
     graph.overlaySurfaces.splice(index, 1);
     refreshOverlaySurfacesList();
+}
+
+function toggleOverlaySurfaceVisibility(index) {
+    const graph = state.graphs.find(g => g.id === currentModalGraphId);
+    if (!graph) return;
+
+    const surface = graph.overlaySurfaces[index];
+    const checkbox = document.getElementById(`surface-visible-${index}`);
+    surface.visible = checkbox.checked;
+
+    updateGraph(currentModalGraphId);
+}
+
+function toggleAllOverlaySurfaces(visible) {
+    const graph = state.graphs.find(g => g.id === currentModalGraphId);
+    if (!graph) return;
+
+    graph.overlaySurfaces.forEach(surface => surface.visible = visible);
+    refreshOverlaySurfacesList();
+    updateGraph(currentModalGraphId);
 }
 
 function updateOverlaySurface(index) {

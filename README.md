@@ -44,17 +44,27 @@ Sliders and text inputs are bidirectionally synced. Graph updates on slider rele
 **Overlay Points**
 - Add custom marker points to any graph
 - Configure: name, coordinates, color, size (1-30), symbol
+- Toggle visibility with checkbox to temporarily hide without deleting
 
 **Overlay Lines**
 - *Equation mode*: Define y = f(x) and z = f(x)
 - *Points mode*: Define line via multiple coordinates
 - Configure: name, color, width
+- Toggle visibility with checkbox to temporarily hide without deleting
 
 **Overlay Surfaces** (3D only)
 - *Equation mode*: z = f(x,y), y = f(x,z), or x = f(y,z)
+  - All three equation types fully supported
 - *Parametric mode*: x(u,v), y(u,v), z(u,v)
 - *Points mode*: Triangulated mesh from vertices
 - Configure: name, color, opacity
+- Toggle visibility with checkbox to temporarily hide without deleting
+
+**Visibility Controls**
+- Individual checkboxes for each overlay item
+- "Show All" / "Hide All" bulk action buttons for each category (points, lines, surfaces)
+- Changes preview in real-time within the modal
+- Visibility state preserved through undo/redo
 
 ### Mathematical Expressions
 Supported in overlay equations:

@@ -51,9 +51,9 @@ Each graph in `state.graphs` has this shape:
         y: { min: number|null, max: number|null, ignoreZero: boolean },
         z: { min: number|null, max: number|null, ignoreZero: boolean }
     },
-    overlayPoints: [],       // Custom marker points
-    overlayLines: [],        // Line overlays (equation or manual points)
-    overlaySurfaces: [],     // Surface overlays (3D only)
+    overlayPoints: [],       // Custom marker points with { ..., visible: boolean }
+    overlayLines: [],        // Line overlays with { ..., visible: boolean }
+    overlaySurfaces: [],     // Surface overlays with { ..., visible: boolean }
     hoverFields: [],         // Additional columns shown in hover tooltips
     disableOverlayHover: boolean  // Hide hover tooltips on overlay items
 }
@@ -134,9 +134,13 @@ Each graph in `state.graphs` has this shape:
 - `softCloseModal()` - Click-outside handler, keeps changes but doesn't apply
 - `closeModalCleanup()` - Clears modal state
 - `modalOpenSnapshot` - Stores overlay/hover state when modal opens
-- `addOverlayPoint/Line/Surface()` - Add overlay items (no graph update)
+- `addOverlayPoint/Line/Surface()` - Add overlay items with `visible: true` default
 - `updateOverlayPoint/Line/Surface(index)` - Update from modal inputs (no graph update)
 - `deleteOverlayPoint/Line/Surface(index)` - Remove overlay items (no graph update)
+- `toggleOverlayPointVisibility(index)` - Toggle individual point visibility
+- `toggleOverlayLineVisibility(index)` - Toggle individual line visibility
+- `toggleOverlaySurfaceVisibility(index)` - Toggle individual surface visibility
+- `toggleAllOverlayPoints/Lines/Surfaces(visible)` - Bulk show/hide all items in category
 
 ### Graph Types
 - **2D**: Scatter, Line, Bar
@@ -146,16 +150,24 @@ Each graph in `state.graphs` has this shape:
 ### Overlay System
 
 **Points**: Custom markers with:
-- name, x, y, z (3D), color, size, symbol (circle/square/diamond/cross/x/triangle/star)
+- name, x, y, z (3D), color, size, symbol (circle/square/diamond/cross/x/triangle/star), visible (boolean)
 
 **Lines**: Two modes:
 - `equation`: y = f(x), optionally z = f(x) for 3D
 - `points`: Manual coordinate list (min 2 points)
+- Properties: name, color, width, visible (boolean)
 
 **Surfaces** (3D only): Three modes:
-- `surface`: z = f(x,y), y = f(x,z), or x = f(y,z)
+- `surface`: z = f(x,y), y = f(x,z), or x = f(y,z) - uses explicit mesh triangulation for y= and x= equations
 - `parametric`: x(u,v), y(u,v), z(u,v) with u,v in [0, 2*PI]
 - `points`: Delaunay triangulated mesh (min 3 points)
+- Properties: name, color, opacity, visible (boolean)
+
+**Visibility Control**:
+- Each overlay item has a checkbox toggle in the Advanced Options modal
+- "Show All" / "Hide All" bulk action buttons for each category
+- Hidden items are excluded from rendering (not just made invisible)
+- Visibility state is preserved through undo/redo and modal draft/apply workflow
 
 ### Expression Evaluation
 Supported in overlays via `evaluateExpression()`:
@@ -265,3 +277,14 @@ Manual testing workflow:
     - Toggle checkbox in Advanced Options modal
     - When enabled, overlay points/lines/surfaces show no hover tooltip
     - Main data trace hover is NOT affected
+17. Test overlay visibility toggles:
+    - Add multiple overlay points/lines/surfaces
+    - Toggle individual item visibility checkboxes
+    - Click "Show All" / "Hide All" buttons
+    - Verify changes preview in real-time
+    - Click Apply to commit, or X to discard
+18. Test surface equation modes:
+    - Create surface with z = f(x,y), verify it displays
+    - Create surface with y = f(x,z), verify it displays
+    - Create surface with x = f(y,z), verify it displays
+    - All three equation types should render properly
