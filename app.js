@@ -216,6 +216,13 @@ const toastContainer = document.getElementById('toast-container');
 const modalOverlay = document.getElementById('modal-overlay');
 const modalBody = document.getElementById('modal-body');
 const modalClose = document.getElementById('modal-close');
+const fileUploadModal = document.getElementById('file-upload-modal');
+const fileUploadModalClose = document.getElementById('file-upload-modal-close');
+const fileUploadAddBtn = document.getElementById('file-upload-add');
+const fileUploadReplaceBtn = document.getElementById('file-upload-replace');
+
+// Pending file upload state (for modal workflow)
+let pendingFileUpload = null;
 
 // ===== Toast Notification System =====
 function showToast(message, type = 'info') {
@@ -244,19 +251,34 @@ function showToast(message, type = 'info') {
 // ===== Excel File Handling =====
 excelFileInput.addEventListener('change', handleFileSelect);
 
+// Helper function to generate unique sheet names when merging
+function getUniqueSheetName(baseName, existingNames) {
+    if (!existingNames.includes(baseName)) return baseName;
+    let counter = 2;
+    while (existingNames.includes(`${baseName} (${counter})`)) {
+        counter++;
+    }
+    return `${baseName} (${counter})`;
+}
+
 async function handleFileSelect(event) {
     const file = event.target.files[0];
     if (!file) return;
 
-    // Confirm if graphs exist
+    // If existing data, show modal for user choice
     if (state.graphs.length > 0) {
-        const confirmed = confirm('Loading a new file will clear all existing graphs. Continue?');
-        if (!confirmed) {
-            excelFileInput.value = '';
-            return;
-        }
+        pendingFileUpload = file;
+        fileUploadModal.classList.add('active');
+        excelFileInput.value = ''; // Clear input
+        return; // Wait for modal button click
     }
 
+    // No existing data - load directly (replace mode)
+    await processFileUpload(file, false);
+    excelFileInput.value = '';
+}
+
+async function processFileUpload(file, mergeMode) {
     fileNameDisplay.textContent = file.name;
 
     try {
@@ -264,14 +286,27 @@ async function handleFileSelect(event) {
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(arrayBuffer);
 
-        // Clear existing data
-        state.allData = {};
-        state.columnOrder = {};
-        state.graphs = [];
+        if (!mergeMode) {
+            // Replace mode - clear everything
+            state.allData = {};
+            state.columnOrder = {};
+            state.graphs = [];
+        }
+
+        const existingSheetNames = Object.keys(state.allData);
+        let sheetCount = 0;
 
         // Parse each sheet
         workbook.eachSheet((worksheet, sheetId) => {
-            const sheetName = worksheet.name;
+            const originalName = worksheet.name;
+            // Get unique name if merging and there's a conflict
+            const sheetName = mergeMode
+                ? getUniqueSheetName(originalName, existingSheetNames)
+                : originalName;
+
+            // Track for next iteration
+            existingSheetNames.push(sheetName);
+
             const rows = [];
             const columns = [];
 
@@ -280,6 +315,8 @@ async function handleFileSelect(event) {
             headerRow.eachCell((cell, colNumber) => {
                 columns.push(cell.value?.toString() || `Column ${colNumber}`);
             });
+
+            if (columns.length === 0) return;
 
             // Parse data rows
             worksheet.eachRow((row, rowNumber) => {
@@ -304,24 +341,62 @@ async function handleFileSelect(event) {
                 rows.push(rowData);
             });
 
-            state.allData[sheetName] = rows;
-            state.columnOrder[sheetName] = columns;
+            if (rows.length > 0) {
+                state.allData[sheetName] = rows;
+                state.columnOrder[sheetName] = columns;
+                sheetCount++;
+            }
         });
 
-        const sheetCount = Object.keys(state.allData).length;
-        showToast(`Loaded ${file.name} with ${sheetCount} sheet(s)`, 'success');
-
-        // Clear graphs container and add example graph
-        renderAllGraphs();
-        if (sheetCount > 0) {
-            addGraph();
+        if (!mergeMode) {
+            // Replace mode - re-render everything
+            renderAllGraphs();
+            if (sheetCount > 0) {
+                addGraph();
+            }
+        } else {
+            // Merge mode - just add one new graph for new data
+            if (sheetCount > 0) {
+                addGraph();
+            }
         }
+
+        showToast(`Loaded ${file.name} with ${sheetCount} sheet(s)`, 'success');
 
     } catch (error) {
         console.error('Error parsing Excel file:', error);
         showToast('Error parsing Excel file. Please check the format.', 'error');
     }
 }
+
+// File upload modal event handlers
+fileUploadModalClose.addEventListener('click', () => {
+    fileUploadModal.classList.remove('active');
+    pendingFileUpload = null;
+});
+
+fileUploadModal.addEventListener('click', (e) => {
+    if (e.target === fileUploadModal) {
+        fileUploadModal.classList.remove('active');
+        pendingFileUpload = null;
+    }
+});
+
+fileUploadAddBtn.addEventListener('click', async () => {
+    fileUploadModal.classList.remove('active');
+    if (pendingFileUpload) {
+        await processFileUpload(pendingFileUpload, true); // merge mode
+        pendingFileUpload = null;
+    }
+});
+
+fileUploadReplaceBtn.addEventListener('click', async () => {
+    fileUploadModal.classList.remove('active');
+    if (pendingFileUpload) {
+        await processFileUpload(pendingFileUpload, false); // replace mode
+        pendingFileUpload = null;
+    }
+});
 
 // ===== Graph Management =====
 function createGraphObject() {
@@ -2678,8 +2753,6 @@ function initializeExampleGraph() {
     populateGraphControls(graph);
     document.getElementById(`title-${graph.id}`).value = graph.title;
     updateGraph(graph.id);
-
-    showToast('Welcome! Example 3D surface loaded. Upload your Excel file to get started.', 'info');
 }
 
 // Initialize on page load

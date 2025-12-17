@@ -810,6 +810,28 @@ input[type="number"]::-webkit-inner-spin-button {
     flex: 1;
 }
 
+/* Small modal variant for simple dialogs */
+.modal-small {
+    max-width: 450px;
+}
+
+.modal-description {
+    color: var(--text-light);
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.file-upload-options {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.file-upload-options .btn {
+    flex: 1;
+    min-width: 140px;
+}
+
 /* ===== Modal Sections ===== */
 .modal-section {
     margin-bottom: 24px;

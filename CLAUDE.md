@@ -72,7 +72,10 @@ Each graph in `state.graphs` has this shape:
 - `toggleTheme()` - Switch between dark/light, save to localStorage, re-render graphs
 
 **File Handling:**
-- `handleFileSelect()` - Parses Excel files with ExcelJS, populates state
+- `handleFileSelect()` - Handles file input, shows modal if data exists, else loads directly
+- `processFileUpload(file, mergeMode)` - Parses Excel file, supports merge or replace mode
+- `getUniqueSheetName(baseName, existingNames)` - Generates unique sheet name for merge conflicts
+- `pendingFileUpload` - Stores file reference while upload modal is open
 
 **Graph Lifecycle:**
 - `createGraphObject()` - Creates new graph config with defaults
@@ -156,6 +159,21 @@ Each graph in `state.graphs` has this shape:
 - `toggleOverlaySurfaceVisibility(index)` - Toggle individual surface visibility
 - `toggleAllOverlayPoints/Lines/Surfaces(visible)` - Bulk show/hide all items in category
 
+**File Upload Modal:**
+- `file-upload-modal` - Modal overlay element for upload options
+- `fileUploadModalClose` - X button to cancel upload
+- `fileUploadAddBtn` - "Add to Existing" button (merge mode)
+- `fileUploadReplaceBtn` - "Replace All" button (clear and load)
+
+### File Upload Behavior
+When uploading an Excel file:
+- **No existing data**: File loads directly without prompting
+- **Existing data**: Modal appears with two options:
+  - **Add to Existing**: Merges new sheets with existing data, preserves existing graphs
+  - **Replace All**: Clears all data and graphs, loads only new file
+- Sheet name conflicts during merge are resolved by appending "(2)", "(3)", etc.
+- X button or clicking outside modal cancels the upload
+
 ### Graph Types
 - **2D**: Scatter, Line, Bar
 - **3D**: 3D Scatter only
@@ -216,7 +234,7 @@ Chrome 90+, Firefox 88+, Safari 14+, Edge 90+
 - DOM IDs use kebab-case with graph ID suffix (e.g., `plot-1`, `x-col-1`)
 - State updates happen in event handlers, graph auto-updates via listeners
 - Toast notifications via `showToast(message, type)` where type is 'success'|'error'|'info'|'warning'
-- Confirmation dialogs use native `confirm()`
+- Confirmation dialogs use native `confirm()` (except file upload which uses custom modal)
 - Modal state tracked via `currentModalGraphId` and `modalOpenSnapshot`
 
 ### Auto-Update Behavior
@@ -255,6 +273,7 @@ Each graph section has a 3-column layout:
 - Visibility groups: `z-col-group-{id}`, `color-col-group-{id}`, `z-filter-group-{id}`
 - Copy settings: `copy-from-{id}`
 - Modal: `disable-overlay-hover` (checkbox)
+- File upload modal: `file-upload-modal`, `file-upload-modal-close`, `file-upload-add`, `file-upload-replace`
 - Fullscreen: `.fullscreen-exit-btn` (dynamically added button)
 - Theme toggle: `theme-toggle` (button), `.sun-icon`, `.moon-icon`
 - Overlay point labels: `point-x-label-{index}`, `point-y-label-{index}`, `point-z-label-{index}`
@@ -269,7 +288,12 @@ On page load, `initializeExampleGraph()` creates sample 3D data (Gaussian ripple
 
 Manual testing workflow:
 1. Load page - example 3D graph should display with "Gaussian Ripple Example Data" title
-2. Upload Excel file - graphs clear, new data loads
+2. Test file upload modal:
+   - Upload Excel file with example data present - modal should appear
+   - Click "Add to Existing" - new sheets merge, example graph preserved
+   - Upload another file, click "Replace All" - all data cleared, only new file loaded
+   - Upload file, click X or outside modal - upload cancelled, nothing changes
+   - If sheet name conflicts, verify renamed to "SheetName (2)"
 3. Add/delete/configure graphs
 4. Test dimension buttons (2D/2D+Color/3D/3D+Color) - graph type buttons should update
 5. Test graph type buttons (Scatter/Line/Bar for 2D, 3D Scatter for 3D)
