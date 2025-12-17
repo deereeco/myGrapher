@@ -98,6 +98,10 @@ Each graph in `state.graphs` has this shape:
 - `syncInputsToSlider(graphId, axis)` - Copy text input values to sliders
 - `resetFilterToFullRange(graphId, axis)` - Reset filter when column changes
 
+**Overlay Label System:**
+- `updateLabelText(id, text)` - Helper to update a single label element
+- `updateOverlayLabels(graphId)` - Update all overlay coordinate labels with column names
+
 **Rendering:**
 - `renderAllGraphs()` - Re-renders all graph sections
 - `renderGraphSection(graph)` - Creates DOM for single graph
@@ -242,6 +246,9 @@ Each graph section has a 3-column layout:
 - Copy settings: `copy-from-{id}`
 - Modal: `disable-overlay-hover` (checkbox)
 - Fullscreen: `.fullscreen-exit-btn` (dynamically added button)
+- Overlay point labels: `point-x-label-{index}`, `point-y-label-{index}`, `point-z-label-{index}`
+- Line point labels: `line-pt-x-label-{lineIndex}-{pointIndex}`, etc.
+- Surface point labels: `surface-pt-x-label-{surfaceIndex}-{pointIndex}`, etc.
 
 ## Initialization
 
@@ -288,3 +295,9 @@ Manual testing workflow:
     - Create surface with y = f(x,z), verify it displays
     - Create surface with x = f(y,z), verify it displays
     - All three equation types should render properly
+19. Test overlay dynamic labels:
+    - Open Advanced Options modal
+    - Add overlay points - X/Y/Z labels should show actual column names (e.g., "Radius", "Height")
+    - Add overlay line in points mode - coordinate labels should show column names
+    - Add overlay surface in points mode - coordinate labels should show column names
+    - Labels update when modal opens based on current column selections

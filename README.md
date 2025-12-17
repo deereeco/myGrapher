@@ -60,6 +60,12 @@ Sliders and text inputs are bidirectionally synced. Graph updates on slider rele
 - Configure: name, color, opacity
 - Toggle visibility with checkbox to temporarily hide without deleting
 
+**Dynamic Coordinate Labels**
+- Coordinate input labels show actual column names instead of generic X/Y/Z
+- Example: If X-axis is "Radius" and Y-axis is "Height", overlay point inputs show "Radius" and "Height" labels
+- Applies to overlay points, line points mode, and surface points mode
+- Equation labels (y = f(x), x(u,v), etc.) retain standard math notation
+
 **Visibility Controls**
 - Individual checkboxes for each overlay item
 - "Show All" / "Hide All" bulk action buttons for each category (points, lines, surfaces)

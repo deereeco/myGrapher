@@ -935,6 +935,50 @@ function updateAllFilterLabels(graphId) {
     updateFilterLabel(graphId, 'z');
 }
 
+// ===== Overlay Label Functions =====
+function updateLabelText(id, text) {
+    const label = document.getElementById(id);
+    if (label) label.textContent = text;
+}
+
+function updateOverlayLabels(graphId) {
+    const graph = state.graphs.find(g => g.id === graphId);
+    if (!graph) return;
+
+    const xCol = graph.columns.x || 'X';
+    const yCol = graph.columns.y || 'Y';
+    const zCol = graph.columns.z || 'Z';
+
+    // Update overlay point labels
+    graph.overlayPoints.forEach((_, index) => {
+        updateLabelText(`point-x-label-${index}`, xCol);
+        updateLabelText(`point-y-label-${index}`, yCol);
+        updateLabelText(`point-z-label-${index}`, zCol);
+    });
+
+    // Update line points mode labels
+    graph.overlayLines.forEach((line, index) => {
+        if (line.mode === 'points') {
+            line.points?.forEach((_, pIndex) => {
+                updateLabelText(`line-pt-x-label-${index}-${pIndex}`, xCol);
+                updateLabelText(`line-pt-y-label-${index}-${pIndex}`, yCol);
+                updateLabelText(`line-pt-z-label-${index}-${pIndex}`, zCol);
+            });
+        }
+    });
+
+    // Update surface points mode labels
+    graph.overlaySurfaces.forEach((surface, index) => {
+        if (surface.mode === 'points') {
+            surface.points?.forEach((_, pIndex) => {
+                updateLabelText(`surface-pt-x-label-${index}-${pIndex}`, xCol);
+                updateLabelText(`surface-pt-y-label-${index}-${pIndex}`, yCol);
+                updateLabelText(`surface-pt-z-label-${index}-${pIndex}`, zCol);
+            });
+        }
+    });
+}
+
 function updateSliderRanges(graphId) {
     const ranges = filterDataRanges.get(graphId);
     if (!ranges) return;
@@ -1906,6 +1950,7 @@ function openAdvancedOptions(graphId) {
     `;
 
     modalOverlay.classList.add('active');
+    updateOverlayLabels(graphId);
 }
 
 function renderOverlayPoints(points, is3D) {
@@ -1935,16 +1980,16 @@ function renderOverlayPoints(points, is3D) {
                     <input type="text" id="point-name-${index}" value="${point.name}" onchange="updateOverlayPoint(${index})">
                 </div>
                 <div class="control-group">
-                    <label class="control-label">X</label>
+                    <label class="control-label" id="point-x-label-${index}">X</label>
                     <input type="number" id="point-x-${index}" value="${point.x}" step="any" onchange="updateOverlayPoint(${index})">
                 </div>
                 <div class="control-group">
-                    <label class="control-label">Y</label>
+                    <label class="control-label" id="point-y-label-${index}">Y</label>
                     <input type="number" id="point-y-${index}" value="${point.y}" step="any" onchange="updateOverlayPoint(${index})">
                 </div>
                 ${is3D ? `
                 <div class="control-group">
-                    <label class="control-label">Z</label>
+                    <label class="control-label" id="point-z-label-${index}">Z</label>
                     <input type="number" id="point-z-${index}" value="${point.z || 0}" step="any" onchange="updateOverlayPoint(${index})">
                 </div>
                 ` : ''}
@@ -2043,16 +2088,16 @@ function renderLinePointsMode(line, index, is3D) {
             ${points.map((p, pIndex) => `
                 <div class="point-item">
                     <div class="control-group">
-                        <label class="control-label">X</label>
+                        <label class="control-label" id="line-pt-x-label-${index}-${pIndex}">X</label>
                         <input type="number" value="${p.x}" step="any" onchange="updateLinePoint(${index}, ${pIndex}, 'x', this.value)">
                     </div>
                     <div class="control-group">
-                        <label class="control-label">Y</label>
+                        <label class="control-label" id="line-pt-y-label-${index}-${pIndex}">Y</label>
                         <input type="number" value="${p.y}" step="any" onchange="updateLinePoint(${index}, ${pIndex}, 'y', this.value)">
                     </div>
                     ${is3D ? `
                     <div class="control-group">
-                        <label class="control-label">Z</label>
+                        <label class="control-label" id="line-pt-z-label-${index}-${pIndex}">Z</label>
                         <input type="number" value="${p.z || 0}" step="any" onchange="updateLinePoint(${index}, ${pIndex}, 'z', this.value)">
                     </div>
                     ` : ''}
@@ -2153,15 +2198,15 @@ function renderSurfaceModeContent(surface, index) {
                 ${points.map((p, pIndex) => `
                     <div class="point-item">
                         <div class="control-group">
-                            <label class="control-label">X</label>
+                            <label class="control-label" id="surface-pt-x-label-${index}-${pIndex}">X</label>
                             <input type="number" value="${p.x}" step="any" onchange="updateSurfacePoint(${index}, ${pIndex}, 'x', this.value)">
                         </div>
                         <div class="control-group">
-                            <label class="control-label">Y</label>
+                            <label class="control-label" id="surface-pt-y-label-${index}-${pIndex}">Y</label>
                             <input type="number" value="${p.y}" step="any" onchange="updateSurfacePoint(${index}, ${pIndex}, 'y', this.value)">
                         </div>
                         <div class="control-group">
-                            <label class="control-label">Z</label>
+                            <label class="control-label" id="surface-pt-z-label-${index}-${pIndex}">Z</label>
                             <input type="number" value="${p.z}" step="any" onchange="updateSurfacePoint(${index}, ${pIndex}, 'z', this.value)">
                         </div>
                         <button class="btn btn-danger btn-small" onclick="deleteSurfacePoint(${index}, ${pIndex})">X</button>
@@ -2242,6 +2287,7 @@ function refreshOverlayPointsList() {
 
     const is3D = graph.dimension.includes('3D');
     document.getElementById('overlay-points-list').innerHTML = renderOverlayPoints(graph.overlayPoints, is3D);
+    updateOverlayLabels(currentModalGraphId);
 }
 
 // ===== Overlay Lines Functions =====
@@ -2348,6 +2394,7 @@ function refreshOverlayLinesList() {
 
     const is3D = graph.dimension.includes('3D');
     document.getElementById('overlay-lines-list').innerHTML = renderOverlayLines(graph.overlayLines, is3D);
+    updateOverlayLabels(currentModalGraphId);
 }
 
 // ===== Overlay Surfaces Functions =====
@@ -2460,6 +2507,7 @@ function refreshOverlaySurfacesList() {
     if (!graph) return;
 
     document.getElementById('overlay-surfaces-list').innerHTML = renderOverlaySurfaces(graph.overlaySurfaces);
+    updateOverlayLabels(currentModalGraphId);
 }
 
 // ===== Hover Fields =====
