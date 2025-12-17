@@ -35,7 +35,6 @@ Per-axis filters for X, Y, and Z with intuitive controls:
 - **Dual-handle range sliders** - Drag min/max handles to filter data visually
 - **Text inputs** - Type exact values or see current slider positions
 - **Ignore zero values** - Checkbox to exclude zero values
-- **Engineering notation** - Display axis values with SI prefixes (k, M, G, etc.)
 - **Auto-detected range** - Slider bounds automatically set from column data
 
 Sliders and text inputs are bidirectionally synced. Graph updates on slider release for smooth interaction. Filters combine with AND logic.

@@ -47,9 +47,9 @@ Each graph in `state.graphs` has this shape:
         color: string | null // Color dimension column
     },
     filters: {
-        x: { min: number|null, max: number|null, ignoreZero: boolean, engineeringNotation: boolean },
-        y: { min: number|null, max: number|null, ignoreZero: boolean, engineeringNotation: boolean },
-        z: { min: number|null, max: number|null, ignoreZero: boolean, engineeringNotation: boolean }
+        x: { min: number|null, max: number|null, ignoreZero: boolean },
+        y: { min: number|null, max: number|null, ignoreZero: boolean },
+        z: { min: number|null, max: number|null, ignoreZero: boolean }
     },
     overlayPoints: [],       // Custom marker points
     overlayLines: [],        // Line overlays (equation or manual points)
@@ -116,7 +116,7 @@ Each graph in `state.graphs` has this shape:
 - `buildPointTrace(point, is3D, disableHover)` - Single overlay point marker
 - `buildLineTrace(line, graph, data, is3D, disableHover)` - Line from equation or points
 - `buildSurfaceTrace(surface, graph, data, disableHover)` - Surface (equation/parametric/mesh)
-- `buildLayout(graph, is3D)` - Plotly layout config with engineering notation support
+- `buildLayout(graph, is3D)` - Plotly layout config
 
 **Data Processing:**
 - `filterData(data, graph)` - Applies min/max/ignoreZero filters
@@ -216,7 +216,7 @@ Each graph section has a 3-column layout:
 - Dimension: 2x2 grid of option buttons (`2D`, `2D+Color`, `3D`, `3D+Color`)
 - Graph Type: Row of option buttons (changes based on dimension)
 - Column selectors: Dropdowns
-- Filters: Dynamic column name label, "Ignore 0" checkbox, "Engineering notation" checkbox, min/max inputs with dual-handle range slider
+- Filters: Dynamic column name label, "Ignore 0" checkbox, min/max inputs with dual-handle range slider
 
 ### DOM ID Patterns
 - Graph section: `graph-section-{id}`
@@ -224,7 +224,7 @@ Each graph section has a 3-column layout:
 - Controls: `sheet-{id}` (select), `dimension-{id}` (button container), `type-{id}` (button container)
 - Columns: `x-col-{id}`, `y-col-{id}`, `z-col-{id}`, `color-col-{id}`
 - Filter labels: `x-filter-label-{id}`, `y-filter-label-{id}`, `z-filter-label-{id}`
-- Filter inputs: `x-min-{id}`, `x-max-{id}`, `x-ignore-zero-{id}`, `x-eng-notation-{id}`, etc.
+- Filter inputs: `x-min-{id}`, `x-max-{id}`, `x-ignore-zero-{id}`, etc.
 - Filter sliders: `x-slider-min-{id}`, `x-slider-max-{id}`, `x-slider-range-{id}`, `x-slider-container-{id}`, etc.
 - Visibility groups: `z-col-group-{id}`, `color-col-group-{id}`, `z-filter-group-{id}`
 - Copy settings: `copy-from-{id}`
@@ -261,11 +261,7 @@ Manual testing workflow:
 13. Test undo/redo buttons (make changes, click undo, click redo)
 14. Test Advanced Options Apply/Discard (add overlay, click Apply vs X button)
 15. Test 3D camera preservation (rotate graph, change filter, orientation should stay)
-16. Test engineering notation:
-    - Toggle checkbox in filter section
-    - Axis labels should change from numbers like "4000" to "4k"
-    - Only visible with large values (>=1000) or small values (<=0.001)
-17. Test disable overlay hover:
+16. Test disable overlay hover:
     - Toggle checkbox in Advanced Options modal
     - When enabled, overlay points/lines/surfaces show no hover tooltip
     - Main data trace hover is NOT affected

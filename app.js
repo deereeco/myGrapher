@@ -80,13 +80,6 @@ function updateFiltersUI(graphId, graph) {
         document.getElementById(`z-ignore-zero-${graphId}`).checked = graph.filters.z.ignoreZero;
     }
 
-    // Update engineering notation checkboxes
-    ['x', 'y', 'z'].forEach(axis => {
-        const engCheckbox = document.getElementById(`${axis}-eng-notation-${graphId}`);
-        if (engCheckbox) {
-            engCheckbox.checked = graph.filters[axis].engineeringNotation || false;
-        }
-    });
 
     // Update sliders to match restored filter values
     syncInputsToSlider(graphId, 'x');
@@ -333,9 +326,9 @@ function createGraphObject() {
             color: null
         },
         filters: {
-            x: { min: null, max: null, ignoreZero: false, engineeringNotation: false },
-            y: { min: null, max: null, ignoreZero: false, engineeringNotation: false },
-            z: { min: null, max: null, ignoreZero: false, engineeringNotation: false }
+            x: { min: null, max: null, ignoreZero: false },
+            y: { min: null, max: null, ignoreZero: false },
+            z: { min: null, max: null, ignoreZero: false }
         },
         overlayPoints: [],
         overlayLines: [],
@@ -534,10 +527,6 @@ function renderGraphSection(graph) {
                         <input type="checkbox" id="x-ignore-zero-${graph.id}" ${graph.filters.x.ignoreZero ? 'checked' : ''}>
                         <label for="x-ignore-zero-${graph.id}" class="checkbox-label">Ignore 0 values</label>
                     </div>
-                    <div class="filter-ignore-row">
-                        <input type="checkbox" id="x-eng-notation-${graph.id}" ${graph.filters.x.engineeringNotation ? 'checked' : ''}>
-                        <label for="x-eng-notation-${graph.id}" class="checkbox-label">Engineering notation</label>
-                    </div>
                     <div class="filter-row">
                         <div class="filter-input-group">
                             <label>Min</label>
@@ -562,10 +551,6 @@ function renderGraphSection(graph) {
                         <input type="checkbox" id="y-ignore-zero-${graph.id}" ${graph.filters.y.ignoreZero ? 'checked' : ''}>
                         <label for="y-ignore-zero-${graph.id}" class="checkbox-label">Ignore 0 values</label>
                     </div>
-                    <div class="filter-ignore-row">
-                        <input type="checkbox" id="y-eng-notation-${graph.id}" ${graph.filters.y.engineeringNotation ? 'checked' : ''}>
-                        <label for="y-eng-notation-${graph.id}" class="checkbox-label">Engineering notation</label>
-                    </div>
                     <div class="filter-row">
                         <div class="filter-input-group">
                             <label>Min</label>
@@ -589,10 +574,6 @@ function renderGraphSection(graph) {
                     <div class="filter-ignore-row">
                         <input type="checkbox" id="z-ignore-zero-${graph.id}" ${graph.filters.z.ignoreZero ? 'checked' : ''}>
                         <label for="z-ignore-zero-${graph.id}" class="checkbox-label">Ignore 0 values</label>
-                    </div>
-                    <div class="filter-ignore-row">
-                        <input type="checkbox" id="z-eng-notation-${graph.id}" ${graph.filters.z.engineeringNotation ? 'checked' : ''}>
-                        <label for="z-eng-notation-${graph.id}" class="checkbox-label">Engineering notation</label>
                     </div>
                     <div class="filter-row">
                         <div class="filter-input-group">
@@ -691,21 +672,6 @@ function setupAutoUpdateListeners(graphId) {
         if (checkbox) {
             checkbox.addEventListener('change', () => {
                 saveToHistory(graphId);
-                updateGraph(graphId);
-            });
-        }
-    });
-
-    // Engineering notation checkboxes - immediate update
-    ['x', 'y', 'z'].forEach(axis => {
-        const engCheckbox = document.getElementById(`${axis}-eng-notation-${graphId}`);
-        if (engCheckbox) {
-            engCheckbox.addEventListener('change', () => {
-                saveToHistory(graphId);
-                const graph = state.graphs.find(g => g.id === graphId);
-                if (graph) {
-                    graph.filters[axis].engineeringNotation = engCheckbox.checked;
-                }
                 updateGraph(graphId);
             });
         }
@@ -1123,15 +1089,12 @@ function updateGraph(graphId) {
     graph.filters.x.min = parseFloatOrNull(document.getElementById(`x-min-${graphId}`).value);
     graph.filters.x.max = parseFloatOrNull(document.getElementById(`x-max-${graphId}`).value);
     graph.filters.x.ignoreZero = document.getElementById(`x-ignore-zero-${graphId}`).checked;
-    graph.filters.x.engineeringNotation = document.getElementById(`x-eng-notation-${graphId}`)?.checked || false;
     graph.filters.y.min = parseFloatOrNull(document.getElementById(`y-min-${graphId}`).value);
     graph.filters.y.max = parseFloatOrNull(document.getElementById(`y-max-${graphId}`).value);
     graph.filters.y.ignoreZero = document.getElementById(`y-ignore-zero-${graphId}`).checked;
-    graph.filters.y.engineeringNotation = document.getElementById(`y-eng-notation-${graphId}`)?.checked || false;
     graph.filters.z.min = parseFloatOrNull(document.getElementById(`z-min-${graphId}`)?.value);
     graph.filters.z.max = parseFloatOrNull(document.getElementById(`z-max-${graphId}`)?.value);
     graph.filters.z.ignoreZero = document.getElementById(`z-ignore-zero-${graphId}`)?.checked || false;
-    graph.filters.z.engineeringNotation = document.getElementById(`z-eng-notation-${graphId}`)?.checked || false;
 
     // Get and filter data
     const rawData = state.allData[graph.sheetName] || [];
@@ -1591,13 +1554,9 @@ function buildLayout(graph, is3D) {
         margin: { l: 60, r: hasColor ? 100 : 30, t: 60, b: 80 }
     };
 
-    // Helper function for axis config with optional engineering notation
+    // Helper function for axis config
     const getAxisConfig = (axis, title, includeZeroline = true) => {
         const config = { title, gridcolor: '#e2e8f0' };
-        if (graph.filters[axis]?.engineeringNotation) {
-            config.tickformat = '.3s';  // SI prefixes: k, M, G, T, etc.
-            config.exponentformat = 'SI';
-        }
         if (!is3D && includeZeroline) {
             config.zeroline = false;
         }
@@ -2446,11 +2405,10 @@ addGraphBtn.addEventListener('click', addGraph);
 function initializeExampleGraph() {
     // Create example data: 3D Gaussian-modulated ripple
     // Focused on the interesting curved region with dense sampling
-    // Values scaled up by 1000 to demonstrate engineering notation (k, M prefixes)
     const exampleData = [];
     const gridSize = 35;
     const range = 4; // Tighter range to focus on the peak
-    const scale = 1000; // Scale factor to make engineering notation visible
+    const scale = 1000; // Scale factor to create visible data range
 
     for (let i = 0; i < gridSize; i++) {
         for (let j = 0; j < gridSize; j++) {
